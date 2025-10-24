@@ -1,10 +1,17 @@
 spring:
-  # H2 인메모리 DB 설정
+  # # H2 인메모리 DB 설정
+  # datasource:
+  #   url: jdbc:h2:mem:testdb;MODE=MySQL # H2를 MySQL 모드로 실행
+  #   driver-class-name: org.h2.Driver
+  #   username: sa
+  #   password:
+
+  # MySQL 데이터베이스 설정
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=MySQL # H2를 MySQL 모드로 실행
-    driver-class-name: org.h2.Driver
-    username: sa
+    url: jdbc:mysql://localhost:3306/test?serverTimezone=UTC&useSSL=false
+    username: root
     password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   # JPA 및 Hibernate 설정
   jpa:
@@ -14,7 +21,7 @@ spring:
       hibernate:
         show_sql: true # 실행되는 SQL을 콘솔에 출력
         format_sql: true # SQL을 보기 좋게 포맷팅
-        default_batch_fetch_size: 100 # IN 절 쿼리 최적화 (N+1 완화 옵션)
+        # default_batch_fetch_size: 100 # IN 절 쿼리 최적화 (N+1 완화 옵션)
 
 # Hibernate가 실행하는 SQL 로그를 DEBUG 레벨로 자세히 보기
 logging:

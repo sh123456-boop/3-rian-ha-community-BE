@@ -358,7 +358,6 @@ public class PostServiceImpl implements PostService{
         return new PostTop5ResponseDto(posts);
     }
 
-
     // 일일 top5 게시물 dto 반환
     @Override
     public PostTop5ResponseDto getDailyTop5Posts() {

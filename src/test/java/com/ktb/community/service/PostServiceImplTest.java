@@ -35,7 +35,6 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
 
-
     @InjectMocks
     private PostServiceImpl postService;
 

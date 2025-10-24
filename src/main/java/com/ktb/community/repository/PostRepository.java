@@ -17,14 +17,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findByIdLessThanOrderByIdDesc(Long lastPostId, Pageable pageable);
 
 
-    // 👇 기존 메서드 대신 사용할 새로운 메서드 1
+    // 👇 최신순 정렬
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user u " +
             "LEFT JOIN FETCH u.image " +
             "ORDER BY p.id DESC")
     Slice<Post> findSliceByOrderByIdDesc(Pageable pageable);
 
-    // 👇 기존 메서드 대신 사용할 새로운 메서드 2
+    // 👇 최신순 정렬
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user u " +
             "LEFT JOIN FETCH u.image " +
@@ -32,7 +32,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findSliceByIdLessThanOrderByIdDesc(@Param("lastPostId") Long lastPostId, Pageable pageable);
 
 
-    // 👇 기존 메서드 대신 사용할 새로운 메서드 1
+    // 👇 인기순 정렬
     @Query("SELECT DISTINCT p FROM Post p " +
                   "LEFT JOIN FETCH p.user u " +
                   "LEFT JOIN FETCH u.image " +
@@ -40,7 +40,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                   "ORDER BY c.view_cnt DESC, p.id DESC") // 👈 2차 정렬 기준 추가
     Slice<Post> findSliceByOrderByViewCountDesc(Pageable pageable);
 
-    // 👇 기존 메서드 대신 사용할 새로운 메서드 2
+    // 👇 인기순 정렬
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user u " +
             "LEFT JOIN FETCH u.image " +
@@ -54,7 +54,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p ORDER BY p.id DESC")
     Slice<Post> findSliceWithoutFetchJoinOrderByIdDesc(Pageable pageable);
 
-    // @Query("SELECT p FROM Post p ORDER BY p.id DESC")
-
-
+ 
 }
