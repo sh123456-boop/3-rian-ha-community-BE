@@ -3,17 +3,26 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
-import com.ktb.community.entity.Image;
 import com.ktb.community.entity.User;
+import com.ktb.community.entity.Image;
 import com.ktb.community.entity.UserLikePosts;
 import com.ktb.community.exception.BusinessException;
+import com.ktb.community.repository.RefreshRepository;
 import com.ktb.community.repository.UserLikePostsRepository;
 import com.ktb.community.repository.UserRepository;
+import com.ktb.community.util.JWTUtil;
+import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +35,8 @@ import static com.ktb.community.exception.ErrorCode.*;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final JWTUtil jwtUtil;
+    private final RefreshRepository refreshRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final S3ServiceImpl s3Service;
     private final UserLikePostsRepository userLikePostsRepository; // 리포지토리 주입
@@ -80,7 +91,7 @@ public class UserServiceImpl implements UserService {
 
     // 회원 탈퇴
     @Transactional
-    public void deleteUser(Long userId, String password) {
+    public void deleteUser(HttpServletRequest request, HttpServletResponse response, Long userId, String password) {
         // 1. 사용자 정보 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(MEMBER_NOT_FOUND));
@@ -89,6 +100,51 @@ public class UserServiceImpl implements UserService {
         if (!bCryptPasswordEncoder.matches(password, user.getPassword())) {
             throw new BusinessException(PASSWORD_MISMATCH);
         }
+
+        String refresh = null;
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("refresh".equals(cookie.getName())) {
+                    refresh = cookie.getValue();
+                }
+            }
+        }
+
+        //refresh null check
+        if (refresh == null) {
+            throw new BusinessException(ACCESS_DENIED);
+
+        }
+        //expired check
+        try {
+            jwtUtil.isExpired(refresh);
+        } catch (ExpiredJwtException e) {
+            throw new BusinessException(ACCESS_DENIED);
+        }
+
+        // 토큰이 refresh인지 확인 (발급시 페이로드에 명시)
+        String category = jwtUtil.getCategory(refresh);
+        if (!category.equals("refresh")) {
+
+            throw new BusinessException(ACCESS_DENIED);
+        }
+
+        //DB에 저장되어 있는지 확인
+        Boolean isExist = refreshRepository.existsByRefresh(refresh);
+        if (!isExist) {
+            //response status code
+            throw new BusinessException(ACCESS_DENIED);
+        }
+
+        // 저장소에서 토큰 삭제
+        refreshRepository.deleteByRefresh(refresh);
+
+        // 쿠키 값 초기화
+        Cookie cookie = new Cookie("refresh", null);
+        cookie.setMaxAge(0);
+        cookie.setPath("/");
+        response.addCookie(cookie);
 
         // 3. 사용자 삭제
         userRepository.delete(user);
@@ -180,5 +236,7 @@ public class UserServiceImpl implements UserService {
         }
         return new UserInfoResponseDto(user.getNickname(), user.getEmail(),authorProfileImageUrl, user.getId());
     }
+
+
 
 }

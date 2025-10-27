@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -115,11 +117,12 @@ public class UserController {
     )
     @DeleteMapping("/v1/users/me")
     public ApiResponseDto<Object> deleteUser(
+            HttpServletRequest request, HttpServletResponse response,
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UserDeleteRequestDto requestDto) {
 
         Long currentUserId = userDetails.getUserId();
-        userService.deleteUser(currentUserId, requestDto.getPassword());
+        userService.deleteUser(request, response,currentUserId, requestDto.getPassword());
 
         return ApiResponseDto.success("회원이 탈퇴되었습니다.");
     }

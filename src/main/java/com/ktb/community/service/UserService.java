@@ -3,6 +3,8 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public interface UserService{
 
@@ -16,7 +18,7 @@ public interface UserService{
     void updatePassword(PasswordRequestDto dto, Long userId);
 
     // 회원 탈퇴
-    void deleteUser(Long userId, String password);
+    void deleteUser(HttpServletRequest request, HttpServletResponse response, Long userId, String password);
 
     // 회원 프로필 이미지 설정
     void updateProfileImage(Long userId, String s3Key);
