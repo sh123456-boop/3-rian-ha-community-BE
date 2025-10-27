@@ -237,7 +237,14 @@ public class PostServiceImpl implements PostService{
             }
         }
 
-        // 4. 게시물 삭제
+        // 4. 일일/주간 랭킹에서 삭제된 게시글 제거
+        ZSetOperations<String, Object> zSetOperations = redisTemplate.opsForZSet();
+        String dailyKey = getDailyRankingKey();
+        String weeklyKey = getWeeklyRankingKey();
+        zSetOperations.remove(dailyKey, postId.toString());
+        zSetOperations.remove(weeklyKey, postId.toString());
+
+        // 5. 게시물 삭제
         post.getUser().getPostList().remove(post);
         // post 엔티티의 cascade 설정으로 인해 연관된 postImage, Comment, PostCount가 함께 삭제
         postRepository.delete(post);
