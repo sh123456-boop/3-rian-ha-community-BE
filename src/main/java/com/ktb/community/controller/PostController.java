@@ -6,8 +6,8 @@ import com.ktb.community.dto.response.PostTop5ResponseDto;
 import com.ktb.community.dto.response.PostResponseDto;
 import com.ktb.community.dto.response.PostSliceResponseDto;
 import com.ktb.community.service.CommentServiceImpl;
-import com.ktb.community.service.CustomUserDetails;
 import com.ktb.community.service.PostServiceImpl;
+import com.ktb.community.util.SessionRequestUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -17,9 +17,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.AccessDeniedException;
@@ -80,9 +80,8 @@ public class PostController {
     )
     @PostMapping("/v1/posts")
     public ApiResponseDto<Object> createPost(@RequestBody @Valid PostCreateRequestDto dto,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // spring security를 통해 현재 인증된 사용자의 정보를 가져옴
-        Long userId = userDetails.getUserId();
+                                             HttpServletRequest request) {
+        Long userId = SessionRequestUtils.getRequiredUserId(request);
 
         Long postId = postService.createPost(dto, userId);
 
@@ -197,10 +196,9 @@ public class PostController {
     )
     @DeleteMapping("/v1/posts/{id}")
     public ApiResponseDto<Object> deletePost(@PathVariable("id") Long postId,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails
-                                           ) throws AccessDeniedException {
-        // 현재 인증된 사용자의 ID를 가져옵니다.
-        Long currentUserId = userDetails.getUserId();
+                                             HttpServletRequest request
+    ) throws AccessDeniedException {
+        Long currentUserId = SessionRequestUtils.getRequiredUserId(request);
 
         postService.deletePost(postId, currentUserId);
 
@@ -247,9 +245,9 @@ public class PostController {
     )
     @PutMapping("/v1/posts/{id}")
     public ApiResponseDto<Object> updatePost(@PathVariable("id") Long postId,
-                                           @RequestBody PostCreateRequestDto requestDto,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long currentUserId = userDetails.getUserId();
+                                             @RequestBody PostCreateRequestDto requestDto,
+                                             HttpServletRequest request) {
+        Long currentUserId = SessionRequestUtils.getRequiredUserId(request);
         postService.updatePost(postId, requestDto, currentUserId);
 
         return ApiResponseDto.success("게시글이 수정되었습니다.");
@@ -280,10 +278,9 @@ public class PostController {
     @PostMapping("/v1/posts/{id}/like")
     public ApiResponseDto<Object> likePost(
             @PathVariable("id") Long postId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            HttpServletRequest request) {
 
-        // 현재 로그인한 사용자의 ID를 가져옵니다.
-        Long currentUserId = userDetails.getUserId();
+        Long currentUserId = SessionRequestUtils.getRequiredUserId(request);
 
         // 서비스 계층에 좋아요 추가 작업을 위임합니다.
         postService.likePost(postId, currentUserId);
@@ -317,9 +314,9 @@ public class PostController {
     @DeleteMapping("/v1/posts/{id}/like")
     public ApiResponseDto<Object> unlikePost(
             @PathVariable("id") Long postId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            HttpServletRequest request) {
 
-        Long currentUserId = userDetails.getUserId();
+        Long currentUserId = SessionRequestUtils.getRequiredUserId(request);
         postService.unlikePost(postId, currentUserId);
 
         // 성공 시 204 No Content 응답을 반환합니다.

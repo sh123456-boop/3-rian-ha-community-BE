@@ -3,31 +3,28 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
-import com.ktb.community.entity.User;
 import com.ktb.community.entity.Image;
+import com.ktb.community.entity.User;
 import com.ktb.community.entity.UserLikePosts;
 import com.ktb.community.exception.BusinessException;
-import com.ktb.community.repository.RefreshRepository;
 import com.ktb.community.repository.UserLikePostsRepository;
 import com.ktb.community.repository.UserRepository;
-import com.ktb.community.util.JWTUtil;
-import io.jsonwebtoken.ExpiredJwtException;
-import jakarta.servlet.http.Cookie;
+import com.ktb.community.util.SessionManager;
+import com.ktb.community.util.SessionRequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.ktb.community.exception.ErrorCode.*;
+import static com.ktb.community.util.SessionConstants.SESSION_COOKIE_NAME;
 
 @Service
 @RequiredArgsConstructor
@@ -35,16 +32,24 @@ import static com.ktb.community.exception.ErrorCode.*;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final JWTUtil jwtUtil;
-    private final RefreshRepository refreshRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final S3ServiceImpl s3Service;
     private final UserLikePostsRepository userLikePostsRepository; // 리포지토리 주입
+    private final SessionManager sessionManager;
     @Value("${aws.cloud_front.domain}")
     private String cloudfrontDomain;
 
     @Value("${aws.cloud_front.default-profile-image-key}")
     private String defaultProfileImageKey;
+
+    @Value("${app.session.cookie-domain}")
+    private String cookieDomain;
+
+    @Value("${app.session.cookie-secure}")
+    private boolean cookieSecure;
+
+    @Value("${app.session.cookie-same-site}")
+    private String cookieSameSite;
 
     // 회원 닉네임 수정
     @Transactional
@@ -88,7 +93,6 @@ public class UserServiceImpl implements UserService {
         user.updatePassword(bCryptPasswordEncoder.encode(dto.getPassword()));
     }
 
-
     // 회원 탈퇴
     @Transactional
     public void deleteUser(HttpServletRequest request, HttpServletResponse response, Long userId, String password) {
@@ -101,50 +105,13 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(PASSWORD_MISMATCH);
         }
 
-        String refresh = null;
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("refresh".equals(cookie.getName())) {
-                    refresh = cookie.getValue();
-                }
-            }
+        String sessionId = SessionRequestUtils.findSessionId(request);
+        if (sessionId == null) {
+            throw new BusinessException(UNAUTHORIZED_USER);
         }
-
-        //refresh null check
-        if (refresh == null) {
-            throw new BusinessException(ACCESS_DENIED);
-
-        }
-        //expired check
-        try {
-            jwtUtil.isExpired(refresh);
-        } catch (ExpiredJwtException e) {
-            throw new BusinessException(ACCESS_DENIED);
-        }
-
-        // 토큰이 refresh인지 확인 (발급시 페이로드에 명시)
-        String category = jwtUtil.getCategory(refresh);
-        if (!category.equals("refresh")) {
-
-            throw new BusinessException(ACCESS_DENIED);
-        }
-
-        //DB에 저장되어 있는지 확인
-        Boolean isExist = refreshRepository.existsByRefresh(refresh);
-        if (!isExist) {
-            //response status code
-            throw new BusinessException(ACCESS_DENIED);
-        }
-
-        // 저장소에서 토큰 삭제
-        refreshRepository.deleteByRefresh(refresh);
-
-        // 쿠키 값 초기화
-        Cookie cookie = new Cookie("refresh", null);
-        cookie.setMaxAge(0);
-        cookie.setPath("/");
-        response.addCookie(cookie);
+        sessionManager.removeSession(sessionId);
+        ResponseCookie logoutCookie = buildExpiredCookie();
+        response.addHeader("Set-Cookie", logoutCookie.toString());
 
         // 3. 사용자 삭제
         userRepository.delete(user);
@@ -234,9 +201,21 @@ public class UserServiceImpl implements UserService {
             // 유저의 프로필 이미지가 없으면 -> 설정해둔 기본 이미지 URL 사용
             authorProfileImageUrl = "https://" + cloudfrontDomain + "/" + defaultProfileImageKey;
         }
-        return new UserInfoResponseDto(user.getNickname(), user.getEmail(),authorProfileImageUrl, user.getId());
+        return new UserInfoResponseDto(user.getNickname(), user.getEmail(), authorProfileImageUrl, user.getId());
     }
 
+    private ResponseCookie buildExpiredCookie() {
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(SESSION_COOKIE_NAME, "")
+                .path("/")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .maxAge(0)
+                .sameSite(cookieSameSite);
 
+        if (cookieDomain != null && !cookieDomain.isBlank()) {
+            builder.domain(cookieDomain);
+        }
 
+        return builder.build();
+    }
 }

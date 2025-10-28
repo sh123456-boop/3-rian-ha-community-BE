@@ -5,9 +5,6 @@ import com.ktb.community.dto.request.JoinRequestDto;
 import com.ktb.community.dto.request.LoginRequestDto;
 import com.ktb.community.service.AuthServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -67,51 +64,7 @@ public class AuthController {
         return ApiResponseDto.success("회원가입이 완료되었습니다.");
     }
 
-    // Access_Token 토큰 재발급
-    @Operation(
-            summary = "Access Token 재발급",
-            description = "Cookie에 담긴 Refresh Token을 검증하여 새로운 Access Token과 Refresh Token을 발급합니다.",
-            parameters = {
-                    @Parameter(
-                            name = "refresh", // 실제 쿠키의 이름
-                            in = ParameterIn.COOKIE,
-                            description = "Access Token 재발급을 위한 Refresh Token",
-                            required = true,
-                            schema = @Schema(type = "string")
-                    )
-            },
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "토큰 재발급 성공",
-                            headers = {
-                                    @Header(
-                                            name = "access 토큰 발급(헤더)",
-                                            description = "access : (토큰값) ",
-                                            schema = @Schema(type = "string")
-                                    ),
-                                    @Header(
-                                            name = "refresh 토큰 발급(쿠키)",
-                                            description = "refresh : (토큰값)",
-                                            schema = @Schema(type = "string")
-                                    )
-                            },
-                            content = @Content // 성공 시 응답 본문은 없으므로 비워둡니다.
-                    ),
-                    @ApiResponse(
-                            responseCode = "400",
-                            description = " 토큰 재발급 실패: 입력값 유효성 검사 오류",
-                            content = @Content
-                    )
-            }
-    )
-    @PostMapping("/v1/auth/reissue")
-    public ApiResponseDto<Object> reissue(HttpServletRequest request, HttpServletResponse response){
-        authService.reissue(request, response);
-        return ApiResponseDto.success("토큰이 재발급되었습니다.");
-    }
-
-    // 로그인은 필터 단에서 처리되므로 해당 로직은 수행하지 않음.
+    // 로그인
     @Operation(
             summary = "로그인",
             description = "이메일, 비밀번호를 이용해 로그인하는 로직",
@@ -127,18 +80,6 @@ public class AuthController {
                     @ApiResponse(
                             responseCode = "200",
                             description = "로그인 성공",
-                            headers = {
-                                    @Header(
-                                            name = "access 토큰 발급(헤더)",
-                                            description = "access : (토큰값) ",
-                                            schema = @Schema(type = "string")
-                                    ),
-                                    @Header(
-                                            name = "refresh 토큰 발급(쿠키)",
-                                            description = "refresh : (토큰값)",
-                                            schema = @Schema(type = "string")
-                                    )
-                            },
                             content = @Content // 성공 시 응답 본문은 없으므로 비워둡니다.
                     ),
                     @ApiResponse(
@@ -154,33 +95,20 @@ public class AuthController {
             }
     )
     @PostMapping("/v1/auth/login")
-    public void login(){}
+    public ApiResponseDto<Object> login(@Valid @RequestBody LoginRequestDto dto, HttpServletResponse response) {
+        authService.login(dto, response);
+        return ApiResponseDto.success("로그인이 완료되었습니다.");
+    }
 
 
-    // 로그아웃은 필터 단에서 처리되므로 해당 로직은 수행하지 않음.
+    // 로그아웃
     @Operation(
             summary = "로그아웃",
-            description = "Cookie에 담긴 Refresh Token을 만료시켜 로그아웃을 처리합니다.",
-            parameters = {
-                    @Parameter(
-                            name = "refresh",
-                            in = ParameterIn.COOKIE,
-                            description = "로그아웃할 사용자의 Refresh Token",
-                            required = true,
-                            schema = @Schema(type = "string")
-                    )
-            },
+            description = "세션 쿠키를 무효화하여 로그아웃을 처리합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
                             description = "로그아웃 성공",
-                            headers = {
-                                    @Header(
-                                            name = "Set-Cookie",
-                                            description = "refresh token 값을 비우고 Max-Age=0으로 설정",
-                                            schema = @Schema(type = "null")
-                                    )
-                            },
                             content = @Content // 로그아웃 성공 시 응답 본문은 없음
                     ),
                     @ApiResponse(
@@ -191,5 +119,8 @@ public class AuthController {
             }
     )
     @PostMapping("/v1/auth/logout")
-    public void logout(){}
+    public ApiResponseDto<Object> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(request, response);
+        return ApiResponseDto.success("로그아웃이 완료되었습니다.");
+    }
 }
