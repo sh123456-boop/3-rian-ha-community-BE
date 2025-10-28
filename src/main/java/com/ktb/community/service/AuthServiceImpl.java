@@ -1,6 +1,7 @@
 package com.ktb.community.service;
 
 import com.ktb.community.dto.request.JoinRequestDto;
+import com.ktb.community.dto.request.LoginRequestDto;
 import com.ktb.community.entity.RefreshEntity;
 import com.ktb.community.entity.Role;
 import com.ktb.community.entity.User;
@@ -14,47 +15,53 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.Date;
+import java.util.Optional;
 
 import static com.ktb.community.exception.ErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class AuthServiceImpl implements AuthService{
+public class AuthServiceImpl implements AuthService {
+
+    private static final String ACCESS_COOKIE_NAME = "access";
+    private static final String REFRESH_COOKIE_NAME = "refresh";
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final RefreshRepository refreshRepository;
     private final JWTUtil jwtUtil;
 
+    @Value("${jwt.access-expiration-ms:1800000}")
+    private long accessTokenExpiryMs;
 
-    // 회원가입
-    @Transactional
+    @Value("${jwt.refresh-expiration-ms:259200000}")
+    private long refreshTokenExpiryMs;
+
+    @Override
     public void join(JoinRequestDto dto) {
         String email = dto.getEmail();
         String password = dto.getPassword();
         String rePassword = dto.getRePassword();
         String nickname = dto.getNickname();
 
-        //비밀번호 검증 로직
-        if(!password.equals(rePassword)) {
+        if (!password.equals(rePassword)) {
             throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
         }
 
-        boolean isExistEmail = userRepository.existsByEmail(email);
-        boolean isExistNickname = userRepository.existsByNickname(nickname);
-        if  (isExistEmail) {
+        if (userRepository.existsByEmail(email)) {
             throw new BusinessException(EMAIL_DUPLICATION);
         }
-        if (isExistNickname) {
+        if (userRepository.existsByNickname(nickname)) {
             throw new BusinessException(NICKNAME_DUPLICATION);
         }
 
@@ -62,104 +69,111 @@ public class AuthServiceImpl implements AuthService{
                 .nickname(nickname)
                 .password(bCryptPasswordEncoder.encode(password))
                 .email(email)
-                .role(Role.valueOf("USER"))
+                .role(Role.USER)
                 .build();
         userRepository.save(user);
     }
 
-    // refresh 토큰으로 access 토큰 재발급
-    @Transactional
-    public ResponseEntity<?> reissue(HttpServletRequest request, HttpServletResponse response) {
+    @Override
+    public void login(LoginRequestDto dto, HttpServletResponse response) {
+        User user = Optional.ofNullable(userRepository.findByEmail(dto.getEmail()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
 
-        // get refresh token
-        String refresh = null;
-        Cookie[] cookies = request.getCookies();
-        for (Cookie cookie : cookies) {
-
-            if (cookie.getName().equals("refresh")) {
-                refresh = cookie.getValue();
-            }
+        if (!bCryptPasswordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 
-        if (refresh == null) {
-            throw new BusinessException(UNAUTHORIZED_USER);
+        issueTokens(response, user.getId(), user.getRole().name());
+    }
+
+
+    @Override
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = resolveCookie(request, REFRESH_COOKIE_NAME);
+
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new BusinessException(ACCESS_DENIED);
         }
 
-        //expired check
         try {
-            jwtUtil.isExpired(refresh);
+            jwtUtil.isExpired(refreshToken);
         } catch (ExpiredJwtException e) {
-
-            //response status code
-            throw  new BusinessException(UNAUTHORIZED_USER);
-        }
-
-        // 토큰이 refresh인지 확인 (발급시 페이로드에 명시)
-        String category = jwtUtil.getCategory(refresh);
-
-        if (!category.equals("refresh")) {
-
             throw new BusinessException(UNAUTHORIZED_USER);
         }
 
-        // 토큰이 내 토큰 저장소에 등록된 토큰인지 확인
-        Boolean exists = refreshRepository.existsByRefresh(refresh);
-        if (!exists) {
+        if (!"refresh".equals(jwtUtil.getCategory(refreshToken))) {
             throw new BusinessException(UNAUTHORIZED_USER);
         }
 
-        Long Id = jwtUtil.getID(refresh);
-        String role = jwtUtil.getRole(refresh);
+        if (!refreshRepository.existsByRefresh(refreshToken)) {
+            throw new BusinessException(UNAUTHORIZED_USER);
+        }
 
-        //make new JWT
-        String newAccess = jwtUtil.createJwt("access", Id, role, 3*600000L); //30분 : 3*600000L
-        String newRefresh = jwtUtil.createJwt("refresh", Id, role, 3*86400000L); //3일
+        refreshRepository.deleteByRefresh(refreshToken);
 
-        // Refresh 토큰 저장, db에 기존의 refresh 토큰 삭제 후 새 refresh 토큰 저장
-        refreshRepository.deleteByRefresh(refresh);
-        addRefreshEntity( Id, newRefresh, 3*86400000L);
-
-        ResponseCookie cookie = ResponseCookie.from("refresh", newRefresh)
-                .path("/")
-                .maxAge(24 * 60 * 60 * 3)
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("None") // http 환경의 cross-site 통신을 위해 "Lax"로 설정
-                .build();
-        response.addHeader("Set-Cookie", cookie.toString());
-
-        //response
-        response.setHeader("access", newAccess);
-        //response.addCookie(createCookie("refresh", newRefresh));
-
-        return new ResponseEntity<>(HttpStatus.OK);
+        expireCookie(response, ACCESS_COOKIE_NAME);
+        expireCookie(response, REFRESH_COOKIE_NAME);
     }
 
-    private Cookie createCookie(String key, String value) {
+    private void issueTokens(HttpServletResponse response, Long userId, String role) {
 
-        Cookie cookie = new Cookie(key, value);
-        cookie.setMaxAge(24*60*60);
-        //cookie.setSecure(true);
-        //cookie.setPath("/");
-        cookie.setHttpOnly(true);
+        // 로그인 시 기존 userId와 연결된 refresh 토큰 삭제
+        refreshRepository.deleteByUserId(userId);
 
-        return cookie;
+        String accessToken = jwtUtil.createJwt("access", userId, role, accessTokenExpiryMs);
+        String refreshToken = jwtUtil.createJwt("refresh", userId, role, refreshTokenExpiryMs);
+
+        saveRefreshToken(userId, refreshToken);
+
+        writeCookie(response, ACCESS_COOKIE_NAME, accessToken, accessTokenExpiryMs);
+        writeCookie(response, REFRESH_COOKIE_NAME, refreshToken, refreshTokenExpiryMs);
     }
 
-    private void addRefreshEntity(Long id, String refresh, Long expiredMs) {
-
-        Date date = new Date(System.currentTimeMillis() + expiredMs);
+    private void saveRefreshToken(Long userId, String refreshToken) {
+        String expiration = new Date(System.currentTimeMillis() + refreshTokenExpiryMs).toString();
 
         RefreshEntity refreshEntity = RefreshEntity.builder()
-                .userId(id)
-                .refresh(refresh)
-                .expiration(date.toString())
+                .userId(userId)
+                .refresh(refreshToken)
+                .expiration(expiration)
                 .build();
 
         refreshRepository.save(refreshEntity);
     }
 
+    private String resolveCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
 
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
 
+    private void writeCookie(HttpServletResponse response, String name, String value, long expiryMs) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("None")
+                .path("/")
+                .maxAge(Duration.ofMillis(expiryMs))
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
 
+    private void expireCookie(HttpServletResponse response, String name) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("None")
+                .path("/")
+                .maxAge(Duration.ZERO)
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
 }

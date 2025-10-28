@@ -5,8 +5,6 @@ import com.ktb.community.dto.request.PostCreateRequestDto;
 import com.ktb.community.dto.response.PostTop5ResponseDto;
 import com.ktb.community.dto.response.PostResponseDto;
 import com.ktb.community.dto.response.PostSliceResponseDto;
-import com.ktb.community.service.CommentServiceImpl;
-import com.ktb.community.service.CustomUserDetails;
 import com.ktb.community.service.PostServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,7 +17,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.file.AccessDeniedException;
@@ -30,7 +27,6 @@ import java.nio.file.AccessDeniedException;
 public class PostController {
 
     private final PostServiceImpl postService;
-    private final CommentServiceImpl commentService;
 
 
     @GetMapping("/v1/post-ranking/day")
@@ -80,11 +76,9 @@ public class PostController {
     )
     @PostMapping("/v1/posts")
     public ApiResponseDto<Object> createPost(@RequestBody @Valid PostCreateRequestDto dto,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails) {
-        // spring security를 통해 현재 인증된 사용자의 정보를 가져옴
-        Long userId = userDetails.getUserId();
+                                             @RequestAttribute("userId") Long userId) {
 
-        Long postId = postService.createPost(dto, userId);
+        postService.createPost(dto, userId);
 
         // 생성된 게시물의 uri를 location 헤더에 담아 201 created 응답을 보냄
         return ApiResponseDto.success("게시글이 저장되었습니다.");
@@ -197,12 +191,10 @@ public class PostController {
     )
     @DeleteMapping("/v1/posts/{id}")
     public ApiResponseDto<Object> deletePost(@PathVariable("id") Long postId,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails
+                                             @RequestAttribute("userId") Long userId
                                            ) throws AccessDeniedException {
-        // 현재 인증된 사용자의 ID를 가져옵니다.
-        Long currentUserId = userDetails.getUserId();
 
-        postService.deletePost(postId, currentUserId);
+        postService.deletePost(postId, userId);
 
         // 성공적으로 삭제되었을 때 표준적인 응답은 204 No Content 입니다.
         return ApiResponseDto.success("게시글이 삭제되었습니다.");
@@ -247,10 +239,9 @@ public class PostController {
     )
     @PutMapping("/v1/posts/{id}")
     public ApiResponseDto<Object> updatePost(@PathVariable("id") Long postId,
-                                           @RequestBody PostCreateRequestDto requestDto,
-                                           @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long currentUserId = userDetails.getUserId();
-        postService.updatePost(postId, requestDto, currentUserId);
+                                             @RequestBody PostCreateRequestDto requestDto,
+                                             @RequestAttribute("userId") Long userId) {
+        postService.updatePost(postId, requestDto, userId);
 
         return ApiResponseDto.success("게시글이 수정되었습니다.");
     }
@@ -280,13 +271,10 @@ public class PostController {
     @PostMapping("/v1/posts/{id}/like")
     public ApiResponseDto<Object> likePost(
             @PathVariable("id") Long postId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        // 현재 로그인한 사용자의 ID를 가져옵니다.
-        Long currentUserId = userDetails.getUserId();
+            @RequestAttribute("userId") Long userId) {
 
         // 서비스 계층에 좋아요 추가 작업을 위임합니다.
-        postService.likePost(postId, currentUserId);
+        postService.likePost(postId, userId);
 
         // 성공 시 200 OK 응답을 반환합니다.
         return ApiResponseDto.success("좋아요가 추가되었습니다.");
@@ -317,10 +305,8 @@ public class PostController {
     @DeleteMapping("/v1/posts/{id}/like")
     public ApiResponseDto<Object> unlikePost(
             @PathVariable("id") Long postId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long currentUserId = userDetails.getUserId();
-        postService.unlikePost(postId, currentUserId);
+            @RequestAttribute("userId") Long userId) {
+        postService.unlikePost(postId, userId);
 
         // 성공 시 204 No Content 응답을 반환합니다.
         return ApiResponseDto.success("좋아요가 취소되었습니다.");

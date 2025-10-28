@@ -3,8 +3,8 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
-import com.ktb.community.entity.User;
 import com.ktb.community.entity.Image;
+import com.ktb.community.entity.User;
 import com.ktb.community.entity.UserLikePosts;
 import com.ktb.community.exception.BusinessException;
 import com.ktb.community.repository.RefreshRepository;
@@ -17,13 +17,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -101,6 +100,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(PASSWORD_MISMATCH);
         }
 
+        // 3. refresh  토큰 확인 - access 토큰으로 인증한 경우, 회원탈퇴 시 refresh 토큰을 삭제해야함.
         String refresh = null;
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
@@ -114,8 +114,8 @@ public class UserServiceImpl implements UserService {
         //refresh null check
         if (refresh == null) {
             throw new BusinessException(ACCESS_DENIED);
-
         }
+
         //expired check
         try {
             jwtUtil.isExpired(refresh);
@@ -138,15 +138,17 @@ public class UserServiceImpl implements UserService {
         }
 
         // 저장소에서 토큰 삭제
+        // 검증에 사용한 refresh 토큰 삭제
         refreshRepository.deleteByRefresh(refresh);
 
-        // 쿠키 값 초기화
-        Cookie cookie = new Cookie("refresh", null);
-        cookie.setMaxAge(0);
-        cookie.setPath("/");
-        response.addCookie(cookie);
+        // 해당 user와 관련된 모든 refresh 토큰 삭제
+        refreshRepository.deleteByUserId(userId);
 
-        // 3. 사용자 삭제
+        // 쿠키 값 초기화
+        expireCookie(response, "access");
+        expireCookie(response, "refresh");
+
+        // 사용자 삭제
         userRepository.delete(user);
     }
 
@@ -235,6 +237,17 @@ public class UserServiceImpl implements UserService {
             authorProfileImageUrl = "https://" + cloudfrontDomain + "/" + defaultProfileImageKey;
         }
         return new UserInfoResponseDto(user.getNickname(), user.getEmail(),authorProfileImageUrl, user.getId());
+    }
+
+    private void expireCookie(HttpServletResponse response, String name) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("None")
+                .path("/")
+                .maxAge(Duration.ZERO)
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 
 

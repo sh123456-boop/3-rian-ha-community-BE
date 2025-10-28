@@ -5,7 +5,6 @@ import com.ktb.community.dto.request.CommentRequestDto;
 import com.ktb.community.dto.response.CommentResponseDto;
 import com.ktb.community.dto.response.CommentSliceResponseDto;
 import com.ktb.community.service.CommentServiceImpl;
-import com.ktb.community.service.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -17,7 +16,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Comment API", description = "댓글 도메인 API")
@@ -68,10 +66,8 @@ public class CommentController {
     public ApiResponseDto<Object> createComment(
             @PathVariable Long postId,
             @Valid @RequestBody CommentRequestDto requestDto,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long userId = userDetails.getUserId();
-        CommentResponseDto comment = commentService.createComment(postId, userId, requestDto);
+            @RequestAttribute("userId") Long userId) {
+        commentService.createComment(postId, userId, requestDto);
         return ApiResponseDto.success("댓글이 저장되었습니다.");
 
 
@@ -152,9 +148,7 @@ public class CommentController {
     public ApiResponseDto<Object> updateComment(
             @PathVariable Long commentId,
             @Valid @RequestBody CommentRequestDto requestDto,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long userId = userDetails.getUserId();
+            @RequestAttribute("userId") Long userId) {
         commentService.updateComment(commentId, userId, requestDto);
 
         return ApiResponseDto.success("댓글이 수정되었습니다.");
@@ -186,9 +180,7 @@ public class CommentController {
     @DeleteMapping("/v1/comments/{commentId}")
     public ApiResponseDto<Object> deleteComment(
             @PathVariable Long commentId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long userId = userDetails.getUserId();
+            @RequestAttribute("userId") Long userId) {
         commentService.deleteComment(commentId, userId);
 
         return ApiResponseDto.success("댓글이 삭제되었습니다.");

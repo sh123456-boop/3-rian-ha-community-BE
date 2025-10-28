@@ -4,7 +4,6 @@ import com.ktb.community.dto.ApiResponseDto;
 import com.ktb.community.dto.request.*;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
-import com.ktb.community.service.CustomUserDetails;
 import com.ktb.community.service.UserServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 @Tag(name = "User API", description = "사용자 도메인 API")
 @RestController
@@ -47,12 +45,10 @@ public class UserController {
     )
     @PutMapping("/v1/users/me/nickname")
     public ApiResponseDto<String> updateNickname(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestAttribute("userId") Long userId,
             @Valid @RequestBody NicknameRequestDto dto
     ) {
-        Long userId = userDetails.getUserId();
         userService.updateNickname(dto.getNickname(), userId);
-
         return ApiResponseDto.success("닉네임이 수정되었습니다.");
     }
 
@@ -88,12 +84,9 @@ public class UserController {
     )
     @PutMapping("/v1/users/me/password")
     public ApiResponseDto<Void> updatePassword(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestAttribute("userId") Long userId,
             @Valid @RequestBody PasswordRequestDto requestDto) {
-
-        Long currentUserId = userDetails.getUserId();
-        userService.updatePassword(requestDto, currentUserId);
-
+        userService.updatePassword(requestDto, userId);
         return ApiResponseDto.success("비밀번호가 수정되었습니다.");
     }
 
@@ -118,12 +111,10 @@ public class UserController {
     @DeleteMapping("/v1/users/me")
     public ApiResponseDto<Object> deleteUser(
             HttpServletRequest request, HttpServletResponse response,
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestAttribute("userId") Long userId,
             @Valid @RequestBody UserDeleteRequestDto requestDto) {
 
-        Long currentUserId = userDetails.getUserId();
-        userService.deleteUser(request, response,currentUserId, requestDto.getPassword());
-
+        userService.deleteUser(request, response, userId, requestDto.getPassword());
         return ApiResponseDto.success("회원이 탈퇴되었습니다.");
     }
 
@@ -149,10 +140,8 @@ public class UserController {
     )
     @PostMapping("/v1/users/me/image")
     public ApiResponseDto<Object> updateProfileImage(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestAttribute("userId") Long userId,
             @RequestBody ProfileImageRequestDto requestDto) {
-
-        Long userId = userDetails.getUserId();
         userService.updateProfileImage(userId, requestDto.getS3_key());
 
         return ApiResponseDto.success("프로필 이미지가 수정되었습니다.");
@@ -172,9 +161,7 @@ public class UserController {
     )
     @DeleteMapping("/v1/users/me/image")
     public ApiResponseDto<Object> deleteProfileImage(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long userId = userDetails.getUserId();
+            @RequestAttribute("userId") Long userId) {
         userService.deleteProfileImage(userId);
 
         return ApiResponseDto.success("프로필 이미지가 삭제되었습니다.");
@@ -203,11 +190,8 @@ public class UserController {
     )
     @GetMapping("/v1/users/me/liked-posts")
     public ApiResponseDto<LikedPostsResponseDto> getMyLikedPosts(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        Long currentUserId = userDetails.getUserId();
-        LikedPostsResponseDto responseDto = userService.getLikedPosts(currentUserId);
-
+            @RequestAttribute("userId") Long userId) {
+        LikedPostsResponseDto responseDto = userService.getLikedPosts(userId);
         return ApiResponseDto.success(responseDto);
     }
 
@@ -229,9 +213,9 @@ public class UserController {
     )
 
     @GetMapping("/v1/users/me")
-    public ApiResponseDto<UserInfoResponseDto> getUserInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails.getUserId();
+    public ApiResponseDto<UserInfoResponseDto> getUserInfo(@RequestAttribute("userId") Long userId) {
         UserInfoResponseDto userInfo = userService.getUserInfo(userId);
         return ApiResponseDto.success(userInfo);
     }
 }
+

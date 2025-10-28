@@ -3,7 +3,6 @@ package com.ktb.community.controller;
 import com.ktb.community.dto.ApiResponseDto;
 import com.ktb.community.dto.request.PreSignedUrlRequestDto;
 import com.ktb.community.dto.response.PreSignedUrlResponseDto;
-import com.ktb.community.service.CustomUserDetails;
 import com.ktb.community.service.S3ServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,9 +12,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "S3 API", description = "s3 도메인 API")
@@ -52,11 +51,8 @@ public class S3urlController {
     @PostMapping("/v1/posts/presignedUrl")
     public ApiResponseDto<PreSignedUrlResponseDto> getUrl(
             @RequestBody @Valid PreSignedUrlRequestDto dto,
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @RequestAttribute("userId") Long userId
             ) {
-        // spring security를 통해 현재 인증된 사용자의 정보를 가져옴
-        Long userId = userDetails.getUserId();
-
         PreSignedUrlResponseDto urlResponseDto = s3Service.getPostPresignedPutUrl(userId, dto.getFileName());
         return ApiResponseDto.success(urlResponseDto);
     }
@@ -90,10 +86,9 @@ public class S3urlController {
     )
     @PostMapping("/v1/users/presignedUrl")
     public ApiResponseDto<PreSignedUrlResponseDto> getProfileUrl (
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestAttribute("userId") Long userId,
             @RequestBody PreSignedUrlRequestDto requestDto
     ){
-        Long userId = userDetails.getUserId();
         PreSignedUrlResponseDto urlResponseDto = s3Service.getProfileImagePresignedUrl(userId, requestDto.getFileName());
         return ApiResponseDto.success(urlResponseDto);
     }

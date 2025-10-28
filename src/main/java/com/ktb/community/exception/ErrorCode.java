@@ -14,6 +14,7 @@ public enum ErrorCode {
 
     // 401 UNAUTHORIZED: 인증되지 않은 사용자
     UNAUTHORIZED_USER(HttpStatus.UNAUTHORIZED, "E-AU001", "인증되지 않은  사용자입니다. 로그인이 필요합니다."),
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "E-AU003", "이메일 또는 비밀번호가 일치하지 않습니다."),
 
     // 403 FORBIDDEN: 접근 권한 없음
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "E-AU002", "접근 권한이 없습니다."),

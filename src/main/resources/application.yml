@@ -1,7 +1,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate   # 개발 중에는 create / create-drop / update 중 선택
+      ddl-auto: create   # 개발 중에는 create / create-drop / update 중 선택
     properties:
       hibernate:
         jdbc:
@@ -17,3 +17,4 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
