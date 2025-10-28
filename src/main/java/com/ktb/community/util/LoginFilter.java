@@ -80,7 +80,7 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
                 .maxAge(24 * 60 * 60 * 3)
                 .httpOnly(true)
                .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
         response.setHeader("access", access); // access 토큰은 헤더에 발급 후 로컬 스토리지에 저장 (csrf 공격 방어)

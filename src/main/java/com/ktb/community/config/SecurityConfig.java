@@ -97,7 +97,6 @@ public class SecurityConfig {
         http
                 .addFilterBefore(new JWTFilter(jwtUtil), LoginFilter.class);
 
-
         // 로그아웃 필터 등록
         http
                 .addFilterBefore(new CustomLogoutFilter(jwtUtil, refreshRepository), LoginFilter.class);

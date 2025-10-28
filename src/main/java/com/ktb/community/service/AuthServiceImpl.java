@@ -124,7 +124,7 @@ public class AuthServiceImpl implements AuthService{
                 .maxAge(24 * 60 * 60 * 3)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("None") // http 환경의 cross-site 통신을 위해 "Lax"로 설정
+                .sameSite("Lax") // http 환경의 cross-site 통신을 위해 "Lax"로 설정
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
 
