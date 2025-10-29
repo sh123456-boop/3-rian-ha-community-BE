@@ -10,26 +10,47 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.ktb.community.dto.response.PostResponseDto;
 import com.ktb.community.dto.response.PostSliceResponseDto;
+import com.ktb.community.dto.response.PostSummaryDto;
 import com.ktb.community.entity.Image;
 import com.ktb.community.entity.Post;
+import com.ktb.community.entity.PostImage;
+import com.ktb.community.entity.PostCount;
 import com.ktb.community.entity.User;
+import com.ktb.community.repository.ImageRepository;
 import com.ktb.community.repository.PostRepository;
+import com.ktb.community.repository.UserLikePostsRepository;
+import com.ktb.community.repository.UserRepository;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +62,105 @@ class PostServiceImplTest {
     @Mock
     private PostRepository postRepository;
 
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private S3ServiceImpl s3Service;
+
+    @Mock
+    private ImageRepository imageRepository;
+
+    @Mock
+    private UserLikePostsRepository userLikePostsRepository;
+
+    @Mock
+    private ZSetOperations<String, Object> zSetOperations;
+
     private static final int PAGE_SIZE = 10;
+
+    @Test
+    @DisplayName("게시글 목록 조회(getPostSlice) 단일 스레드 단위 테스트")
+    void getPostSlice_singleThread_returnsMappedSlice() {
+        // given
+        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "test.cloudfront.net");
+        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default-key");
+
+        User userWithProfile = User.builder()
+                .id(1L)
+                .email("user1@test.com")
+                .password("password")
+                .nickname("user1")
+                .build();
+
+        Image profileImage = Image.builder()
+                .id(101L)
+                .s3Key("profiles/user1.png")
+                .build();
+        userWithProfile.updateProfileImage(profileImage);
+
+        Post firstPost = Post.builder()
+                .id(10L)
+                .title("First Title")
+                .contents("First Content")
+                .build();
+        firstPost.setUser(userWithProfile);
+        ReflectionTestUtils.setField(firstPost.getPostCount(), "view_cnt", 5);
+        ReflectionTestUtils.setField(firstPost.getPostCount(), "likes_cnt", 3);
+        ReflectionTestUtils.setField(firstPost.getPostCount(), "cmt_cnt", 1);
+
+        User userWithoutProfile = User.builder()
+                .id(2L)
+                .email("user2@test.com")
+                .password("password")
+                .nickname("user2")
+                .build();
+
+        Post secondPost = Post.builder()
+                .id(11L)
+                .title("Second Title")
+                .contents("Second Content")
+                .build();
+        secondPost.setUser(userWithoutProfile);
+        ReflectionTestUtils.setField(secondPost.getPostCount(), "view_cnt", 2);
+        ReflectionTestUtils.setField(secondPost.getPostCount(), "likes_cnt", 1);
+        ReflectionTestUtils.setField(secondPost.getPostCount(), "cmt_cnt", 0);
+
+        Slice<Post> mockSlice = new SliceImpl<>(
+                List.of(firstPost, secondPost),
+                PageRequest.of(0, PAGE_SIZE),
+                true
+        );
+        when(postRepository.findSliceByOrderByIdDesc(PageRequest.of(0, PAGE_SIZE))).thenReturn(mockSlice);
+
+        // when
+        PostSliceResponseDto response = postService.getPostSlice(null);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.isHasNext()).isTrue();
+        assertThat(response.getPosts()).hasSize(2);
+
+        PostSummaryDto summaryFirst = response.getPosts().get(0);
+        assertThat(summaryFirst.getPostId()).isEqualTo(10L);
+        assertThat(summaryFirst.getTitle()).isEqualTo("First Title");
+        assertThat(summaryFirst.getAuthorNickname()).isEqualTo("user1");
+        assertThat(summaryFirst.getViewCount()).isEqualTo(5);
+        assertThat(summaryFirst.getLikeCount()).isEqualTo(3);
+        assertThat(summaryFirst.getCommentCount()).isEqualTo(1);
+        assertThat(summaryFirst.getAuthorProfileImageUrl()).isEqualTo("https://test.cloudfront.net/profiles/user1.png");
+
+        PostSummaryDto summarySecond = response.getPosts().get(1);
+        assertThat(summarySecond.getPostId()).isEqualTo(11L);
+        assertThat(summarySecond.getAuthorNickname()).isEqualTo("user2");
+        assertThat(summarySecond.getAuthorProfileImageUrl()).isEqualTo("https://test.cloudfront.net/default-key");
+
+        verify(postRepository).findSliceByOrderByIdDesc(PageRequest.of(0, PAGE_SIZE));
+        verifyNoMoreInteractions(postRepository);
+    }
 
     @Test
     @DisplayName("게시글 목록 조회(getPostSlice) 동시성 단위 테스트")
@@ -114,8 +233,193 @@ class PostServiceImplTest {
     }
 
     @Test
-    @DisplayName("게시글 목록 조회(getPostSlice) 동시성 통합 테스트")
-    void getPostSlice2() throws InterruptedException{
+    @DisplayName("게시글 단건 조회(getPost) 단일 스레드 단위 테스트")
+    void getPost_returnsDetailedDtoAndUpdatesCounters() {
+        // given
+        Long postId = 42L;
+        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.test.com");
+        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
 
+        User author = User.builder()
+                .id(7L)
+                .email("author@test.com")
+                .password("password123")
+                .nickname("authorNick")
+                .build();
+
+        Image profileImage = Image.builder()
+                .id(3L)
+                .s3Key("profiles/author.png")
+                .user(author)
+                .build();
+        author.updateProfileImage(profileImage);
+
+        Post post = Post.builder()
+                .id(postId)
+                .title("Sample Title")
+                .contents("Sample Content")
+                .build();
+        post.setUser(author);
+
+        PostCount postCount = post.getPostCount();
+        postCount.setPost(post);
+
+        Image postImage = Image.builder()
+                .id(99L)
+                .s3Key("posts/image-1.png")
+                .build();
+        PostImage postImageRelation = PostImage.builder()
+                .post(post)
+                .image(postImage)
+                .orders(1)
+                .build();
+        post.setPostImageList(postImageRelation);
+
+        when(postRepository.findByIdWithPessimisticLock(postId)).thenReturn(java.util.Optional.of(post));
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
+        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
+        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        when(userLikePostsRepository.existsByUserAndPost(author, post)).thenReturn(true);
+
+        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        WeekFields weekFields = WeekFields.of(Locale.KOREA);
+        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
+        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
+
+        // when
+        PostResponseDto response = postService.getPost(postId);
+
+        // then
+        assertThat(response.getPostId()).isEqualTo(postId);
+        assertThat(response.getTitle()).isEqualTo("Sample Title");
+        assertThat(response.getContent()).isEqualTo("Sample Content");
+        assertThat(response.getNickname()).isEqualTo("authorNick");
+        assertThat(response.getUserId()).isEqualTo(author.getId());
+        assertThat(response.isLikedByUser()).isTrue();
+
+        assertThat(response.getAuthorProfileImageUrl())
+                .isEqualTo("https://cdn.test.com/profiles/author.png");
+        assertThat(response.getImages()).hasSize(1);
+        PostResponseDto.ImageInfo imageInfo = response.getImages().get(0);
+        assertThat(imageInfo.getImageUrl()).isEqualTo("https://cdn.test.com/posts/image-1.png");
+        assertThat(imageInfo.getOrder()).isEqualTo(1);
+        assertThat(imageInfo.getS3_key()).isEqualTo("posts/image-1.png");
+
+        assertThat(post.getPostCount().getView_cnt()).isEqualTo(1);
+        assertThat(response.getViewCount()).isEqualTo(1);
+
+        verify(postRepository).findByIdWithPessimisticLock(postId);
+        verify(redisTemplate).opsForZSet();
+        verify(zSetOperations).incrementScore(expectedDailyKey, postId.toString(), 1.0);
+        verify(zSetOperations).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
+        verify(redisTemplate).getExpire(expectedDailyKey);
+        verify(redisTemplate).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
+        verify(redisTemplate).getExpire(expectedWeeklyKey);
+        verify(redisTemplate).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
+        verify(userLikePostsRepository).existsByUserAndPost(author, post);
+        verifyNoMoreInteractions(postRepository, redisTemplate, zSetOperations, userLikePostsRepository);
     }
+
+    @Test
+    @DisplayName("게시글 단건 조회(getPost) 동시성 단위 테스트")
+    void getPost_concurrentAccess() throws InterruptedException {
+        Long postId = 99L;
+        int threadCount = 1000;
+        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.concurrent.com");
+        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
+
+        AtomicInteger viewCounter = new AtomicInteger();
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
+        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
+        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        when(userLikePostsRepository.existsByUserAndPost(any(User.class), any(Post.class))).thenReturn(false);
+
+        when(postRepository.findByIdWithPessimisticLock(postId)).thenAnswer(invocation -> {
+            User author = User.builder()
+                    .id(7L)
+                    .email("concurrent@test.com")
+                    .password("password123")
+                    .nickname("concurrent")
+                    .build();
+            Image profileImage = Image.builder()
+                    .id(11L)
+                    .s3Key("profiles/concurrent.png")
+                    .user(author)
+                    .build();
+            author.updateProfileImage(profileImage);
+
+            Post post = Post.builder()
+                    .id(postId)
+                    .title("Concurrent Title")
+                    .contents("Concurrent Content")
+                    .build();
+            post.setUser(author);
+
+            Image postImage = Image.builder()
+                    .id(21L)
+                    .s3Key("posts/concurrent.png")
+                    .build();
+            PostImage postImageRelation = PostImage.builder()
+                    .post(post)
+                    .image(postImage)
+                    .orders(1)
+                    .build();
+            post.setPostImageList(postImageRelation);
+
+            PostCount postCount = new PostCount() {
+                @Override
+                public void increaseViewCount() {
+                    int newValue = viewCounter.incrementAndGet();
+                    ReflectionTestUtils.setField(this, "view_cnt", newValue);
+                }
+            };
+            postCount.setPost(post);
+            ReflectionTestUtils.setField(post, "postCount", postCount);
+            return Optional.of(post);
+        });
+
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+        List<PostResponseDto> results = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    PostResponseDto response = postService.getPost(postId);
+                    results.add(response);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        assertThat(results).hasSize(threadCount);
+        assertThat(viewCounter.get()).isEqualTo(threadCount);
+        results.forEach(response -> {
+            assertThat(response.getPostId()).isEqualTo(postId);
+            assertThat(response.getAuthorProfileImageUrl()).startsWith("https://cdn.concurrent.com/");
+            assertThat(response.getImages()).hasSize(1);
+        });
+
+        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        WeekFields weekFields = WeekFields.of(Locale.KOREA);
+        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
+        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
+
+        verify(postRepository, times(threadCount)).findByIdWithPessimisticLock(postId);
+        verify(redisTemplate, times(threadCount)).opsForZSet();
+        verify(zSetOperations, times(threadCount)).incrementScore(expectedDailyKey, postId.toString(), 1.0);
+        verify(zSetOperations, times(threadCount)).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
+        verify(redisTemplate, times(threadCount)).getExpire(expectedDailyKey);
+        verify(redisTemplate, times(threadCount)).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
+        verify(redisTemplate, times(threadCount)).getExpire(expectedWeeklyKey);
+        verify(redisTemplate, times(threadCount)).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
+        verify(userLikePostsRepository, times(threadCount)).existsByUserAndPost(any(User.class), any(Post.class));
+    }
+
 }

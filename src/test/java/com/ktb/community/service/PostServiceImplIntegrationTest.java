@@ -12,8 +12,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -46,6 +47,12 @@ class PostServiceImplIntegrationTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @MockBean
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @MockBean
+    private S3ServiceImpl s3Service;
 
     private static final int PAGE_SIZE = 10;
     private static final int DATASET_SIZE = 500;
@@ -177,7 +184,7 @@ class PostServiceImplIntegrationTest {
     @Test
     @DisplayName("Fetch Join 유무에 따른 멀티 스레드 실행 시간 비교")
     void compareExecutionTime_multiThreaded() throws InterruptedException {
-        int threadCount = 50;
+        int threadCount = 100;
         int iterations = 3;
 
         // warm-up

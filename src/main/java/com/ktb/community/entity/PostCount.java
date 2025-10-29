@@ -33,6 +33,9 @@ public class PostCount {
     @ColumnDefault("0")
     private int view_cnt;
 
+    @Version
+    private Long version;
+
 
     //== 비즈니스 로직 ==//
     // 조회수 +1
@@ -56,5 +59,7 @@ public class PostCount {
     public void decreaseCmtCount() {
         this.cmt_cnt = Math.max(0, this.cmt_cnt - 1);
     }
+
+
 
 }

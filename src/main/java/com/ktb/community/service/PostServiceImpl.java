@@ -96,7 +96,10 @@ public class PostServiceImpl implements PostService{
     // 게시글 단건 조회(상세 페이지)
     @Transactional
     public PostResponseDto getPost(Long postId) {
-        Post post = postRepository.findById(postId)
+        // 기본 postRepository.findById(postId)
+        // 비관적 락 postRepository.findByIdWithPessimisticLock(postId)
+        // 낙관적 락 postRepository.findByIdWithOptimisticLock(postId)
+        Post post = postRepository.findByIdWithPessimisticLock(postId)
                 .orElseThrow(() -> new BusinessException(POST_NOT_FOUND));
 
         // 조회수 증가 로직 호출

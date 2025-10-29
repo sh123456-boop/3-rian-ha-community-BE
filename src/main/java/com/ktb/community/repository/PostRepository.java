@@ -1,11 +1,15 @@
 package com.ktb.community.repository;
 
 import com.ktb.community.entity.Post;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
 
@@ -21,6 +25,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user u " +
             "LEFT JOIN FETCH u.image " +
+            "LEFT JOIN FETCH p.postCount c " +
             "ORDER BY p.id DESC")
     Slice<Post> findSliceByOrderByIdDesc(Pageable pageable);
 
@@ -28,6 +33,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT DISTINCT p FROM Post p " +
             "LEFT JOIN FETCH p.user u " +
             "LEFT JOIN FETCH u.image " +
+            "LEFT JOIN FETCH p.postCount c " +
             "WHERE p.id < :lastPostId ORDER BY p.id DESC")
     Slice<Post> findSliceByIdLessThanOrderByIdDesc(@Param("lastPostId") Long lastPostId, Pageable pageable);
 
@@ -54,5 +60,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p ORDER BY p.id DESC")
     Slice<Post> findSliceWithoutFetchJoinOrderByIdDesc(Pageable pageable);
 
- 
+    // 비관적 락을 사용하여 Post와 PostCount를 함께 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Post p JOIN FETCH p.postCount WHERE p.id = :postId")
+    Optional<Post> findByIdWithPessimisticLock(@Param("postId") Long postId);
+
+    // 낙관적 락을 사용하여 Post와 PostCount를 함께 조회
+    @Lock(LockModeType.OPTIMISTIC)
+    @Query("SELECT p FROM Post p JOIN FETCH p.postCount WHERE p.id = :postId")
+    Optional<Post> findByIdWithOptimisticLock(@Param("postId") Long postId);
+
 }
