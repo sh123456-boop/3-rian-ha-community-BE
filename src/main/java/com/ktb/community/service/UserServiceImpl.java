@@ -19,8 +19,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 
 import java.util.List;
+import java.util.Locale;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.stream.Collectors;
 
 import static com.ktb.community.exception.ErrorCode.*;
@@ -38,6 +44,7 @@ public class UserServiceImpl implements UserService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final S3ServiceImpl s3Service;
     private final UserLikePostsRepository userLikePostsRepository; // 리포지토리 주입
+    private final RedisTemplate<String, Object> redisTemplate;
     @Value("${aws.cloud_front.domain}")
     private String cloudfrontDomain;
 
@@ -158,6 +165,8 @@ public class UserServiceImpl implements UserService {
             }
         });
 
+        removeUserPostsFromRanking(user);
+
         // 사용자가 작성한 댓글 제거
         commentRepository.deleteByUser(user);
 
@@ -258,6 +267,35 @@ public class UserServiceImpl implements UserService {
         return new UserInfoResponseDto(user.getNickname(), user.getEmail(),authorProfileImageUrl, user.getId());
     }
 
+    // 유저 삭제시 유저가 작성한 게시물도 레디스에서 제거
+    private void removeUserPostsFromRanking(User user) {
+        List<Post> userPosts = user.getPostList();
+        if (userPosts == null || userPosts.isEmpty()) {
+            return;
+        }
 
+        String dailyKey = getDailyRankingKey();
+        String weeklyKey = getWeeklyRankingKey();
+        ZSetOperations<String, Object> zSetOperations = redisTemplate.opsForZSet();
+
+        userPosts.stream()
+                .map(Post::getId)
+                .filter(postId -> postId != null)
+                .map(String::valueOf)
+                .forEach(postId -> {
+                    zSetOperations.remove(dailyKey, postId);
+                    zSetOperations.remove(weeklyKey, postId);
+                });
+    }
+
+    private String getDailyRankingKey() {
+        return "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    private String getWeeklyRankingKey() {
+        LocalDate now = LocalDate.now();
+        int weekOfYear = now.get(WeekFields.of(Locale.KOREA).weekOfWeekBasedYear());
+        return "ranking:weekly:" + now.getYear() + "-W" + String.format("%02d", weekOfYear);
+    }
 
 }
