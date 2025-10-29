@@ -275,11 +275,12 @@ class PostServiceImplTest {
                 .build();
         post.setPostImageList(postImageRelation);
 
-        when(postRepository.findByIdWithPessimisticLock(postId)).thenReturn(java.util.Optional.of(post));
+        when(postRepository.findByIdWithPessimisticLock(postId)).thenReturn(Optional.of(post));
         when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
         when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
         when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
         when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        when(userRepository.findById(author.getId())).thenReturn(Optional.of(author));
         when(userLikePostsRepository.existsByUserAndPost(author, post)).thenReturn(true);
 
         String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -288,7 +289,7 @@ class PostServiceImplTest {
         String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
 
         // when
-        PostResponseDto response = postService.getPost(postId);
+        PostResponseDto response = postService.getPost(postId, author.getId());
 
         // then
         assertThat(response.getPostId()).isEqualTo(postId);
@@ -317,8 +318,9 @@ class PostServiceImplTest {
         verify(redisTemplate).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
         verify(redisTemplate).getExpire(expectedWeeklyKey);
         verify(redisTemplate).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
+        verify(userRepository).findById(author.getId());
         verify(userLikePostsRepository).existsByUserAndPost(author, post);
-        verifyNoMoreInteractions(postRepository, redisTemplate, zSetOperations, userLikePostsRepository);
+        verifyNoMoreInteractions(postRepository, redisTemplate, zSetOperations, userLikePostsRepository, userRepository);
     }
 
     @Test
@@ -335,6 +337,14 @@ class PostServiceImplTest {
         when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
         when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(userLikePostsRepository.existsByUserAndPost(any(User.class), any(Post.class))).thenReturn(false);
+        Long viewerId = 1000L;
+        User viewer = User.builder()
+                .id(viewerId)
+                .email("viewer@test.com")
+                .password("password123")
+                .nickname("viewer")
+                .build();
+        when(userRepository.findById(viewerId)).thenReturn(Optional.of(viewer));
 
         when(postRepository.findByIdWithPessimisticLock(postId)).thenAnswer(invocation -> {
             User author = User.builder()
@@ -387,7 +397,7 @@ class PostServiceImplTest {
         for (int i = 0; i < threadCount; i++) {
             executorService.submit(() -> {
                 try {
-                    PostResponseDto response = postService.getPost(postId);
+                    PostResponseDto response = postService.getPost(postId, viewerId);
                     results.add(response);
                 } finally {
                     latch.countDown();

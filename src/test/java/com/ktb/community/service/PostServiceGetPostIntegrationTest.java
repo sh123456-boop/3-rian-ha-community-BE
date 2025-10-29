@@ -111,7 +111,7 @@ class PostServiceGetPostIntegrationTest {
         String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
 
         // when
-        PostResponseDto response = postService.getPost(savedPost.getId());
+        PostResponseDto response = postService.getPost(savedPost.getId(), savedAuthor.getId());
 
         // then
         assertThat(response.getPostId()).isEqualTo(savedPost.getId());
@@ -192,7 +192,7 @@ class PostServiceGetPostIntegrationTest {
                 try {
                     readyLatch.countDown();
                     startLatch.await();
-                    postService.getPost(savedPost.getId());
+                    postService.getPost(savedPost.getId(), savedAuthor.getId());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } finally {

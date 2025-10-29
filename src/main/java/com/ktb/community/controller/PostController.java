@@ -121,8 +121,9 @@ public class PostController {
             }
     )
     @GetMapping("/v1/posts/{id}")
-    public ApiResponseDto<PostResponseDto> getPost(@PathVariable("id") Long postId) {
-        PostResponseDto postResponseDto = postService.getPost(postId);
+    public ApiResponseDto<PostResponseDto> getPost(@PathVariable("id") Long postId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUserId();
+        PostResponseDto postResponseDto = postService.getPost(postId, userId);
 
         return ApiResponseDto.success(postResponseDto);
     }

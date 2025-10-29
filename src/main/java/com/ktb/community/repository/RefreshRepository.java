@@ -18,6 +18,8 @@ public interface RefreshRepository extends JpaRepository<RefreshEntity, Long> {
     @Transactional
     void deleteByRefresh(String refresh);
 
+    @Transactional
+    void deleteAllByUserId(Long userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

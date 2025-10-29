@@ -95,7 +95,7 @@ public class PostServiceImpl implements PostService{
 
     // 게시글 단건 조회(상세 페이지)
     @Transactional
-    public PostResponseDto getPost(Long postId) {
+    public PostResponseDto getPost(Long postId, Long userId) {
         // 기본 postRepository.findById(postId)
         // 비관적 락 postRepository.findByIdWithPessimisticLock(postId)
         // 낙관적 락 postRepository.findByIdWithOptimisticLock(postId)
@@ -147,7 +147,8 @@ public class PostServiceImpl implements PostService{
                 .collect(Collectors.toList());
 
         // 좋아요 누른 게시글인지 확인
-        boolean likedByUser = userLikePostsRepository.existsByUserAndPost(author, post);
+        User user = userRepository.findById(userId).orElseThrow(()-> new BusinessException(MEMBER_NOT_FOUND));
+        boolean likedByUser = userLikePostsRepository.existsByUserAndPost(user, post);
 
         // 3. 최종 응답 dto 반환
         return new PostResponseDto(post, imageInfos, authorProfileImageUrl, author.getId(), likedByUser);

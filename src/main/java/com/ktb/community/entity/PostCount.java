@@ -33,8 +33,8 @@ public class PostCount {
     @ColumnDefault("0")
     private int view_cnt;
 
-    @Version
-    private Long version;
+//    @Version
+//    private Long version;
 
 
     //== 비즈니스 로직 ==//
@@ -58,6 +58,10 @@ public class PostCount {
     }
     public void decreaseCmtCount() {
         this.cmt_cnt = Math.max(0, this.cmt_cnt - 1);
+    }
+
+    public void decreaseCmtCount(long count) {
+        this.cmt_cnt = Math.toIntExact(Math.max(0, this.cmt_cnt - count));
     }
 
 

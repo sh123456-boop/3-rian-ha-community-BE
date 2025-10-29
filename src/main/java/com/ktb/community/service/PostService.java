@@ -12,7 +12,7 @@ public interface PostService {
     Long createPost(PostCreateRequestDto dto, Long userId);
 
     // 게시글 단건 조회(상세 페이지)
-    PostResponseDto getPost(Long postId);
+    PostResponseDto getPost(Long postId, Long userId);
 
     // 게시글 전체 조회(인피니티 스크롤)
     PostSliceResponseDto getPostSlice(Long lastPostId);

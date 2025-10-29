@@ -3,13 +3,12 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
+import com.ktb.community.entity.Post;
 import com.ktb.community.entity.User;
 import com.ktb.community.entity.Image;
 import com.ktb.community.entity.UserLikePosts;
 import com.ktb.community.exception.BusinessException;
-import com.ktb.community.repository.RefreshRepository;
-import com.ktb.community.repository.UserLikePostsRepository;
-import com.ktb.community.repository.UserRepository;
+import com.ktb.community.repository.*;
 import com.ktb.community.util.JWTUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.Cookie;
@@ -20,9 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,8 +31,10 @@ import static com.ktb.community.exception.ErrorCode.*;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PostRepository postRepository;
     private final JWTUtil jwtUtil;
     private final RefreshRepository refreshRepository;
+    private final CommentRepository commentRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final S3ServiceImpl s3Service;
     private final UserLikePostsRepository userLikePostsRepository; // 리포지토리 주입
@@ -139,6 +137,29 @@ public class UserServiceImpl implements UserService {
 
         // 저장소에서 토큰 삭제
         refreshRepository.deleteByRefresh(refresh);
+        refreshRepository.deleteAllByUserId(userId);
+
+        // 사용자가 작성한 댓글의 수를 각 게시물의 PostCount에서 감소
+        List<PostCommentCountDto> postCommentCounts = commentRepository.countCommentsByUserGroupedByPost(userId);
+        postCommentCounts.forEach(postCommentCount -> {
+            Long postId = postCommentCount.postId();
+            long commentCount = postCommentCount.commentCount();
+            // 각 게시물의 PostCount 엔티티를 찾아서 댓글 수 감소
+            Post post = postRepository.findById(postId).orElseThrow(()-> new BusinessException(POST_NOT_FOUND));
+            post.getPostCount().decreaseCmtCount(commentCount);
+        });
+
+        // 사용자가 좋아요한 게시글들의 좋아요 수 감소
+        List<UserLikePosts> likedPosts = userLikePostsRepository.findByUserOrderByLikedAtDesc(user);
+        likedPosts.forEach(userLikePost -> {
+            Post likedPost = userLikePost.getPost();
+            if (likedPost != null && likedPost.getPostCount() != null) {
+                likedPost.getPostCount().decreaseLikesCount();
+            }
+        });
+
+        // 사용자가 작성한 댓글 제거
+        commentRepository.deleteByUser(user);
 
         // 쿠키 값 초기화
         Cookie cookie = new Cookie("refresh", null);

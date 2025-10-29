@@ -53,8 +53,8 @@ public class Post extends Timestamped{
     @Builder.Default
     private PostCount postCount = new PostCount();
 
-    @Version
-    private Long version;
+//    @Version
+//    private Long version;
 
     // Post 생성자에 PostCount 초기화 로직 추가
     @PrePersist
