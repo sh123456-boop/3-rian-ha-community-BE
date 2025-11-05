@@ -20,7 +20,6 @@ public class RefreshEntity {
     @Column(name = "refresh_id")
     private Long id;
 
-
     private Long userId;
     private String refresh;
 

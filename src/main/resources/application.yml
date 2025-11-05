@@ -1,12 +1,21 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: none   # 개발 중에는 create / create-drop / update 중 선택
+      ddl-auto: validate   # 개발 중에는 create / create-drop / update 중 선택
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
         format_sql: true
+
+  flyway:
+    enabled: true # 스프링 부트 기동 시 Flyway 자동 실행. (사실 기본값이 true라서 보통 생략해도 됩니다.)
+    locations: classpath:db/migration # 마이그레이션 스크립트(예: V1__init.sql, V2__add_table.sql, R__refresh_views.sql)를 찾을 경로.
+    validate-on-migrate: true # migrate 전에 검증(validate) 수행.
+    clean-disabled: true # flyway clean(스키마의 모든 객체 드롭)을 금지. 운영/스테이징은 무조건 true 권장.
+
+
+
   profiles:
     include: secret
 
