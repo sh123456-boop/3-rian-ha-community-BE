@@ -1,5 +1,7 @@
 package com.ktb.community.config;
 
+import com.ktb.community.oauth.handler.CustomOAuth2SuccessHandler;
+import com.ktb.community.oauth.service.CustomOAuth2UserService;
 import com.ktb.community.repository.RefreshRepository;
 import com.ktb.community.util.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,7 +16,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -30,7 +31,6 @@ public class SecurityConfig {
     private final JWTUtil jwtUtil;
     private final RefreshRepository refreshRepository;
 
-
     // AuthenticationManager Bean 등록
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -44,7 +44,9 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                          CustomOAuth2UserService customOAuth2UserService,
+                                          CustomOAuth2SuccessHandler customOAuth2SuccessHandler) throws Exception {
 
         // CORS 설정 추가
         http
@@ -76,10 +78,17 @@ public class SecurityConfig {
         http
                 .httpBasic((auth)-> auth.disable());
 
+        // oauth 로그인
+        http
+                .oauth2Login((oauth2) -> oauth2
+                        .userInfoEndpoint((userInfoEndpointConfig) -> userInfoEndpointConfig
+                                .userService(customOAuth2UserService))
+                        .successHandler(customOAuth2SuccessHandler));
+
         // 경로별 인가 작업
         http
                 .authorizeHttpRequests((auth)-> auth
-                        .requestMatchers("/v1/auth/login", "/v1/auth/join", "/v1/auth/reissue",
+                        .requestMatchers("/v1/auth/login", "/v1/auth/join", "/v1/auth/reissue", "/oauth2/**",
                                 "/swagger-ui/**", "/v3/api-docs/**", "/terms", "/privacy","/v1/users/me/nickname").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());

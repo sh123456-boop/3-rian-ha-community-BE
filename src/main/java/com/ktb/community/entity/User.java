@@ -4,10 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +16,14 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+
 public class User extends Timestamped{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
     private Long id;
+
 
     @NotBlank // null, 빈문자열, 공백 문자열 모두 허용하지 않음
     @Email // 이메일 형식 검증
@@ -37,12 +36,16 @@ public class User extends Timestamped{
     private String password;
 
     @NotBlank
+    @Setter
     @Size(min = 2, max = 10)
     @Column(nullable = false, unique = true)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private OauthUser oauthUser;
 
     // 유저를 삭제하면 관련 image 삭제, 이미지를 바꾸면 기존 이미지 삭제
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
