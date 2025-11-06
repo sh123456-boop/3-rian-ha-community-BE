@@ -5,6 +5,7 @@ import com.ktb.community.entity.OauthUser;
 import com.ktb.community.entity.Role;
 import com.ktb.community.entity.User;
 import com.ktb.community.oauth.dto.CustomOauth2User;
+import com.ktb.community.oauth.dto.KakaoResponse;
 import com.ktb.community.oauth.dto.NaverResponse;
 import com.ktb.community.oauth.dto.OAuth2Response;
 import com.ktb.community.repository.OauthUserRepository;
@@ -36,9 +37,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         OAuth2Response oAuth2Response = null;
 
-        // 네이버에서 온 응답일때
+        // 네이버에서 온 응답
         if (registrationId.equals("naver")) {
             oAuth2Response = new NaverResponse(oAuth2User.getAttributes());
+        }
+        // 카카오에서 온 응답
+        if (registrationId.equals("kakao")) {
+            oAuth2Response = new KakaoResponse(oAuth2User.getAttributes());
         }
 
         String provider = oAuth2Response.getProvider();
