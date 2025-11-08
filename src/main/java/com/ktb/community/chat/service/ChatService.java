@@ -27,18 +27,18 @@ public interface ChatService {
     // 채팅방 이전 메시지 조회
     List<ChatMessageDto> getChatHistory(Long roomId, Long userId);
 
-    //
+    // 유저가 해당 채팅방 참여자인지 확인
     boolean isRoomPaticipant(Long userId, Long roomId);
 
-    //
-    void messageRead(Long roomId);
+    // 메시지 읽음 처리
+    void messageRead(Long roomId, Long userId);
 
     // 내 채팅 목록 조회
-    List<MyChatListResDto> getMyChatRooms();
+    List<MyChatListResDto> getMyChatRooms(Long userId);
 
     // 그룹 채팅방 나가기
-    void leaveGroupChatRoom(Long roomId);
+    void leaveGroupChatRoom(Long roomId, Long userId);
 
-    //
-    Long getOrCreatePrivateRoom(Long otherMemberId);
+    // 1:1 채팅방 개설
+    Long getOrCreatePrivateRoom(Long otherMemberId, Long userId);
 }

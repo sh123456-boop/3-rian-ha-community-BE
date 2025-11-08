@@ -10,4 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class MyChatListResDto {
+    private Long roomId;
+    private String roomName;
+    private Boolean isGroupChat;
+    private Long unReadCount;
 }

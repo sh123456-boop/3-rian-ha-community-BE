@@ -11,6 +11,7 @@ public enum ErrorCode {
     // 400 BAD_REQUEST: 잘못된 요청
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "E-C001", "입력 값이 올바르지 않습니다."),
     PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "E-C002", "비밀번호가 일치하지 않습니다."),
+    NOT_GROUP_CHAT(HttpStatus.BAD_REQUEST, "E-C003", "단체 채팅방이 아닙니다."),
 
     // 401 UNAUTHORIZED: 인증되지 않은 사용자
     UNAUTHORIZED_USER(HttpStatus.UNAUTHORIZED, "E-AU001", "인증되지 않은  사용자입니다. 로그인이 필요합니다."),
