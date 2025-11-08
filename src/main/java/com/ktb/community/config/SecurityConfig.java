@@ -6,6 +6,7 @@ import com.ktb.community.repository.RefreshRepository;
 import com.ktb.community.util.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,6 +32,15 @@ public class SecurityConfig {
     private final JWTUtil jwtUtil;
     private final RefreshRepository refreshRepository;
 
+    @Value("${spring.route.front}")
+    String front;
+
+    @Value("${spring.route.front2}")
+    String front2;
+
+//    @Value("${spring.route.aws-front}")
+//    String aws_front;
+
     // AuthenticationManager Bean 등록
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -54,7 +64,7 @@ public class SecurityConfig {
                     @Override
                     public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
                         CorsConfiguration configuration = new CorsConfiguration();
-                        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://127.0.0.1:3000","http://localhost:8080", "http://127.0.0.1:8080","http://13.124.246.56:3000","http://13.124.246.56:8080"  ));
+                        configuration.setAllowedOrigins(Arrays.asList(front, front2,"http://localhost:8080", "http://127.0.0.1:8080" /*aws_front*/ ));
                         configuration.setAllowedMethods(Collections.singletonList("*"));
                         configuration.setAllowCredentials(true);
                         configuration.setAllowedHeaders(Collections.singletonList("*"));

@@ -1,0 +1,56 @@
+package com.ktb.community.chat.config;
+
+import com.ktb.community.chat.service.ChatService;
+import com.ktb.community.exception.BusinessException;
+import io.jsonwebtoken.Jwts;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+
+import static com.ktb.community.exception.ErrorCode.ACCESS_DENIED;
+
+@Component
+public class StompHandler implements ChannelInterceptor {
+
+    private SecretKey secretKey;
+
+    private final ChatService chatService;
+
+    public StompHandler(@Value("${jwt.secret}") String secret, ChatService chatService) {
+
+        // yml 파일 기반 secret 키 생성
+        secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), Jwts.SIG.HS256.key().build().getAlgorithm());
+        this.chatService = chatService;
+    }
+
+    @Override
+    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        final StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+        // Ws 연결시 토큰 검증
+        if (StompCommand.CONNECT == accessor.getCommand()){
+            String accessToken = accessor.getFirstNativeHeader("access");
+            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
+                    .getPayload().get("userId", Long.class);
+        }
+        // 특정 방 구독 시 접근 권한 확인
+        if (StompCommand.SUBSCRIBE == accessor.getCommand()) {
+            String accessToken = accessor.getFirstNativeHeader("access");
+            Long userId = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
+                    .getPayload().get("userId", Long.class);
+            String roomId = accessor.getDestination().split("/")[2];
+            if(!chatService.isRoomPaticipant(userId, Long.parseLong(roomId))){
+                throw new BusinessException(ACCESS_DENIED);
+            }
+        }
+        return message;
+    }
+}

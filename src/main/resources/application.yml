@@ -55,6 +55,13 @@ spring:
     redis:
       host: localhost
       port: 6379
+
+  route:
+    front: http://localhost:3000
+    front2: http://127.0.0.1:3000
+#    aws-front: http://localhost:3000
+
 logging:
   level:
     org.hibernate.SQL: debug
+
