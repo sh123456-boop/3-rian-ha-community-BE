@@ -46,7 +46,7 @@ public class StompHandler implements ChannelInterceptor {
             Long userId = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
                     .getPayload().get("userId", Long.class);
             String roomId = accessor.getDestination().split("/")[2];
-            if(!chatServiceImpl.isRoomPaticipant(userId, Long.parseLong(roomId))){
+            if(!chatServiceImpl.isRoomParticipant(userId, Long.parseLong(roomId))){
                 throw new BusinessException(ACCESS_DENIED);
             }
         }

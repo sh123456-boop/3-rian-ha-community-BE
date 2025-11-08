@@ -3,18 +3,15 @@ package com.ktb.community.chat.controller;
 import com.ktb.community.chat.dto.ChatMessageDto;
 import com.ktb.community.chat.dto.ChatRoomListResDto;
 import com.ktb.community.chat.dto.MyChatListResDto;
-import com.ktb.community.chat.service.ChatService;
 import com.ktb.community.chat.service.ChatServiceImpl;
 import com.ktb.community.dto.ApiResponseDto;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/chat")
+@RequestMapping("/v1/chat")
 public class ChatController {
     private final ChatServiceImpl chatService;
 
@@ -33,7 +30,7 @@ public class ChatController {
     //    그룹채팅목록조회
     @GetMapping("/room/group/list")
     public ApiResponseDto<Object> getGroupChatRooms(){
-        List<ChatRoomListResDto> chatRooms = chatService.getGroupchatRooms();
+        List<ChatRoomListResDto> chatRooms = chatService.getGroupChatRooms();
         return ApiResponseDto.success(chatRooms);
     }
 

@@ -93,7 +93,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<ChatRoomListResDto> getGroupchatRooms() {
+    public List<ChatRoomListResDto> getGroupChatRooms() {
         // 레포지토리에서 그룹채팅방 조회
         List<ChatRoom> chatRooms = chatRoomRepository.findByIsGroupChat(true);
 
@@ -153,7 +153,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public boolean isRoomPaticipant(Long userId, Long roomId) {
+    public boolean isRoomParticipant(Long userId, Long roomId) {
         // 채팅방 조회
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new BusinessException(ROOM_NOT_FOUND));
 

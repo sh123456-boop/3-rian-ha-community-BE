@@ -16,19 +16,19 @@ public interface ChatService {
     void createGroupRoom(String chatRoomName, Long userId);
 
     // 그룹 채팅방 조회
-    List<ChatRoomListResDto> getGroupchatRooms();
+    List<ChatRoomListResDto> getGroupChatRooms();
 
     // 그룹채팅방 참여
     void addParticipantToGroupChat(Long roomId, Long userId);
 
-    //
+    // 채팅방 참여
     void addParticipantToRoom(ChatRoom chatRoom, User user);
 
     // 채팅방 이전 메시지 조회
     List<ChatMessageDto> getChatHistory(Long roomId, Long userId);
 
     // 유저가 해당 채팅방 참여자인지 확인
-    boolean isRoomPaticipant(Long userId, Long roomId);
+    boolean isRoomParticipant(Long userId, Long roomId);
 
     // 메시지 읽음 처리
     void messageRead(Long roomId, Long userId);
