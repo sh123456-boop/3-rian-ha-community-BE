@@ -35,8 +35,8 @@ create table chat_messages(
             on delete cascade
 );
 
-create table message_read_status (
-    message_read_id bigint not null auto_increment primary key,
+create table read_status (
+    read_status_id bigint not null auto_increment primary key,
     is_read boolean not null,
     chat_room_id bigint not null,
     chat_message_id bigint not null,
