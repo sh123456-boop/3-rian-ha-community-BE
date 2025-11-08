@@ -1,6 +1,6 @@
 package com.ktb.community.chat.config;
 
-import com.ktb.community.chat.service.ChatService;
+import com.ktb.community.chat.service.ChatServiceImpl;
 import com.ktb.community.exception.BusinessException;
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,7 +9,6 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -23,13 +22,13 @@ public class StompHandler implements ChannelInterceptor {
 
     private SecretKey secretKey;
 
-    private final ChatService chatService;
+    private final ChatServiceImpl chatServiceImpl;
 
-    public StompHandler(@Value("${jwt.secret}") String secret, ChatService chatService) {
+    public StompHandler(@Value("${jwt.secret}") String secret, ChatServiceImpl chatServiceImpl) {
 
         // yml 파일 기반 secret 키 생성
         secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), Jwts.SIG.HS256.key().build().getAlgorithm());
-        this.chatService = chatService;
+        this.chatServiceImpl = chatServiceImpl;
     }
 
     @Override
@@ -47,7 +46,7 @@ public class StompHandler implements ChannelInterceptor {
             Long userId = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
                     .getPayload().get("userId", Long.class);
             String roomId = accessor.getDestination().split("/")[2];
-            if(!chatService.isRoomPaticipant(userId, Long.parseLong(roomId))){
+            if(!chatServiceImpl.isRoomPaticipant(userId, Long.parseLong(roomId))){
                 throw new BusinessException(ACCESS_DENIED);
             }
         }

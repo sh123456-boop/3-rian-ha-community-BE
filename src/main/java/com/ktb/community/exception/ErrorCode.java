@@ -22,6 +22,7 @@ public enum ErrorCode {
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "E-M001", "해당 회원을 찾을 수 없습니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "E-P001", "해당 게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "E-C001", "해당 댓글을 찾을 수 없습니다."),
+    ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "E-R001", "해당 채팅방을 찾을 수 없습니다."),
 
     // 409 CONFLICT: 리소스 충돌 (중복)
     EMAIL_DUPLICATION(HttpStatus.CONFLICT, "E-M002", "이미 사용 중인 이메일입니다."),
