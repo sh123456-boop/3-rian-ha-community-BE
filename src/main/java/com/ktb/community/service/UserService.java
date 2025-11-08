@@ -3,6 +3,8 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
+import com.ktb.community.dto.response.UserProfileDto;
+import com.ktb.community.dto.response.UserProfilePageResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -32,5 +34,10 @@ public interface UserService{
     // 사용자 정보 페이지
     UserInfoResponseDto getUserInfo(Long userId);
 
+    // 가입 순서대로 유저 목록 페이지
+    UserProfilePageResponseDto getUserProfiles(int page);
+
+    // 닉네임으로 특정 유저 조회
+    UserProfileDto getUserProfileByNickname(String nickname);
 
 }

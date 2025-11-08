@@ -1,23 +1,30 @@
 package com.ktb.community.chat.controller;
 
 import com.ktb.community.chat.dto.ChatMessageDto;
-import com.ktb.community.chat.dto.ChatRoomListResDto;
+import com.ktb.community.chat.dto.ChatRoomResDto;
+import com.ktb.community.chat.dto.ChatRoomPageResponseDto;
 import com.ktb.community.chat.dto.MyChatListResDto;
 import com.ktb.community.chat.service.ChatServiceImpl;
 import com.ktb.community.dto.ApiResponseDto;
+import com.ktb.community.service.UserServiceImpl;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/v1/chat")
+@Transactional
 public class ChatController {
     private final ChatServiceImpl chatService;
+    private final UserServiceImpl userService;
 
-    public ChatController(ChatServiceImpl chatService) {
+    public ChatController(ChatServiceImpl chatService, UserServiceImpl userService) {
         this.chatService = chatService;
+        this.userService = userService;
     }
+
 
     //    그룹채팅방 개설
     @PostMapping("/room/group/create")
@@ -29,9 +36,16 @@ public class ChatController {
 
     //    그룹채팅목록조회
     @GetMapping("/room/group/list")
-    public ApiResponseDto<Object> getGroupChatRooms(){
-        List<ChatRoomListResDto> chatRooms = chatService.getGroupChatRooms();
+    public ApiResponseDto<ChatRoomPageResponseDto> getGroupChatRooms(@RequestParam(name = "page", defaultValue = "0") int page){
+        ChatRoomPageResponseDto chatRooms = chatService.getGroupChatRooms(page);
         return ApiResponseDto.success(chatRooms);
+    }
+
+    //    그룹채팅 단건 조회
+    @GetMapping("/room/group")
+    public ApiResponseDto<ChatRoomResDto> getGroupChatRoomByName(@RequestParam("name") String roomName) {
+        ChatRoomResDto chatRoom = chatService.getGroupChatRoomByName(roomName);
+        return ApiResponseDto.success(chatRoom);
     }
 
     //    그룹채팅방참여

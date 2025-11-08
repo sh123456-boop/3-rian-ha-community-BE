@@ -1,7 +1,8 @@
 package com.ktb.community.chat.service;
 
 import com.ktb.community.chat.dto.ChatMessageDto;
-import com.ktb.community.chat.dto.ChatRoomListResDto;
+import com.ktb.community.chat.dto.ChatRoomResDto;
+import com.ktb.community.chat.dto.ChatRoomPageResponseDto;
 import com.ktb.community.chat.dto.MyChatListResDto;
 import com.ktb.community.chat.entity.ChatRoom;
 import com.ktb.community.entity.User;
@@ -16,7 +17,10 @@ public interface ChatService {
     void createGroupRoom(String chatRoomName, Long userId);
 
     // 그룹 채팅방 조회
-    List<ChatRoomListResDto> getGroupChatRooms();
+    ChatRoomPageResponseDto getGroupChatRooms(int page);
+
+    // 채팅방 이름으로 단일 조회
+    ChatRoomResDto getGroupChatRoomByName(String roomName);
 
     // 그룹채팅방 참여
     void addParticipantToGroupChat(Long roomId, Long userId);

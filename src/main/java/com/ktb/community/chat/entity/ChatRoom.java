@@ -4,6 +4,7 @@ import com.ktb.community.entity.Timestamped;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +27,8 @@ public class ChatRoom extends Timestamped {
     private Long id;
 
     @NotNull
+    @Column(unique = true)
+    @Size(min = 2, max = 10)
     private String name;
 
     @NotNull

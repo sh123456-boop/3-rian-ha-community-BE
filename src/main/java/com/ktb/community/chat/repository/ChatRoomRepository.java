@@ -1,11 +1,14 @@
 package com.ktb.community.chat.repository;
 
 import com.ktb.community.chat.entity.ChatRoom;
-import com.ktb.community.chat.entity.ReadStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import java.util.Optional;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
-    List<ChatRoom> findByIsGroupChat(boolean isGroupChat);
+    Page<ChatRoom> findByIsGroupChatTrue(Pageable pageable);
+
+    Optional<ChatRoom> findByName(String name);
 }

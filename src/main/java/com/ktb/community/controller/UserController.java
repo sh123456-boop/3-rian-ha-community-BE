@@ -4,6 +4,8 @@ import com.ktb.community.dto.ApiResponseDto;
 import com.ktb.community.dto.request.*;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
+import com.ktb.community.dto.response.UserProfileDto;
+import com.ktb.community.dto.response.UserProfilePageResponseDto;
 import com.ktb.community.service.CustomUserDetails;
 import com.ktb.community.service.UserServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
@@ -234,4 +236,29 @@ public class UserController {
         UserInfoResponseDto userInfo = userService.getUserInfo(userId);
         return ApiResponseDto.success(userInfo);
     }
+
+    @Operation(
+            summary = "가입 유저 목록 조회",
+            description = "가입 순서대로 정렬된 유저 목록을 10개 단위로 페이지네이션하여 반환합니다."
+    )
+    @GetMapping("/v1/users")
+    public ApiResponseDto<UserProfilePageResponseDto> getUserProfiles(
+            @RequestParam(name = "page", defaultValue = "0") int page
+    ) {
+        UserProfilePageResponseDto responseDto = userService.getUserProfiles(page);
+        return ApiResponseDto.success(responseDto);
+    }
+
+    @Operation(
+            summary = "닉네임으로 유저 조회",
+            description = "특정 닉네임을 가진 사용자의 프로필 정보를 반환합니다."
+    )
+    @GetMapping("/v1/users/{nickname}")
+    public ApiResponseDto<UserProfileDto> getUserProfileByNickname(
+            @PathVariable("nickname") String nickname
+    ) {
+        UserProfileDto responseDto = userService.getUserProfileByNickname(nickname);
+        return ApiResponseDto.success(responseDto);
+    }
+
 }

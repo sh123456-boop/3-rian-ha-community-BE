@@ -1,7 +1,8 @@
 package com.ktb.community.chat.service;
 
 import com.ktb.community.chat.dto.ChatMessageDto;
-import com.ktb.community.chat.dto.ChatRoomListResDto;
+import com.ktb.community.chat.dto.ChatRoomResDto;
+import com.ktb.community.chat.dto.ChatRoomPageResponseDto;
 import com.ktb.community.chat.dto.MyChatListResDto;
 import com.ktb.community.chat.entity.ChatMessage;
 import com.ktb.community.chat.entity.ChatParticipant;
@@ -14,8 +15,10 @@ import com.ktb.community.chat.repository.ReadStatusRepository;
 import com.ktb.community.entity.User;
 import com.ktb.community.exception.BusinessException;
 import com.ktb.community.repository.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,6 +30,8 @@ import static com.ktb.community.exception.ErrorCode.*;
 
 @Service
 public class ChatServiceImpl implements ChatService {
+
+    private static final int GROUP_CHAT_PAGE_SIZE = 5;
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatParticipantRepository chatParticipantRepository;
@@ -93,17 +98,27 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<ChatRoomListResDto> getGroupChatRooms() {
-        // 레포지토리에서 그룹채팅방 조회
-        List<ChatRoom> chatRooms = chatRoomRepository.findByIsGroupChat(true);
+    public ChatRoomPageResponseDto getGroupChatRooms(int page) {
+        Pageable pageable = PageRequest.of(page, GROUP_CHAT_PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ChatRoom> chatRooms = chatRoomRepository.findByIsGroupChatTrue(pageable);
 
-        // DTO로 변환
-        return chatRooms.stream()
-                .map(chatRoom -> ChatRoomListResDto.builder()
-                        .roomId(chatRoom.getId())
-                        .roomName(chatRoom.getName())
-                        .build())
+        List<ChatRoomResDto> chatRoomDtos = chatRooms.stream()
+                .map(this::toChatRoomListResDto)
                 .collect(Collectors.toList());
+
+        return new ChatRoomPageResponseDto(chatRoomDtos, chatRooms.hasNext());
+    }
+
+    @Override
+    public ChatRoomResDto getGroupChatRoomByName(String roomName) {
+        ChatRoom chatRoom = chatRoomRepository.findByName(roomName)
+                .orElseThrow(() -> new BusinessException(ROOM_NOT_FOUND));
+
+        if (!chatRoom.isGroupChat()) {
+            throw new BusinessException(NOT_GROUP_CHAT);
+        }
+
+        return toChatRoomListResDto(chatRoom);
     }
 
     @Override
@@ -119,6 +134,13 @@ public class ChatServiceImpl implements ChatService {
         if (!byChatRoomAndUser.isPresent()) {
             addParticipantToRoom(chatRoom, user);
         }
+    }
+
+    private ChatRoomResDto toChatRoomListResDto(ChatRoom chatRoom) {
+        return ChatRoomResDto.builder()
+                .roomId(chatRoom.getId())
+                .roomName(chatRoom.getName())
+                .build();
     }
 
     @Override
@@ -145,7 +167,9 @@ public class ChatServiceImpl implements ChatService {
         for(ChatMessage c : chatMessages){
             ChatMessageDto chatMessageDto = ChatMessageDto.builder()
                     .message(c.getContents())
+                    .nickName(c.getUser().getNickname())
                     .senderId(c.getUser().getId())
+                    .createdAt(c.getCreatedAt())
                     .build();
             chatMessageDtos.add(chatMessageDto);
         }
@@ -234,7 +258,7 @@ public class ChatServiceImpl implements ChatService {
         // 1:1 채팅방이 없을 경우 채팅방 개설
         ChatRoom newRoom = ChatRoom.builder()
                 .isGroupChat(false)
-                .name(user.getNickname() + "-" + otherMember.getNickname())
+                .name(otherMember.getNickname())
                 .build();
         chatRoomRepository.save(newRoom);
 

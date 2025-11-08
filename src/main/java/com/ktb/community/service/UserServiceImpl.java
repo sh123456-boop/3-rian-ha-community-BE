@@ -3,6 +3,8 @@ package com.ktb.community.service;
 import com.ktb.community.dto.request.PasswordRequestDto;
 import com.ktb.community.dto.response.LikedPostsResponseDto;
 import com.ktb.community.dto.response.UserInfoResponseDto;
+import com.ktb.community.dto.response.UserProfileDto;
+import com.ktb.community.dto.response.UserProfilePageResponseDto;
 import com.ktb.community.entity.Post;
 import com.ktb.community.entity.User;
 import com.ktb.community.entity.Image;
@@ -22,6 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +42,8 @@ import static com.ktb.community.exception.ErrorCode.*;
 @RequiredArgsConstructor
 @Transactional
 public class UserServiceImpl implements UserService {
+
+    private static final int USER_PAGE_SIZE = 5;
 
     private final UserRepository userRepository;
     private final PostRepository postRepository;
@@ -260,18 +268,40 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(MEMBER_NOT_FOUND));
 
-        // 작성자의 프로필 이미지 URL을 생성
-        String authorProfileImageUrl;
+        String authorProfileImageUrl = buildProfileImageUrl(user);
 
-        if (user.getImage() != null) {
-            // 유저의 프로필 이미지가 있으면 -> 해당 이미지의 URL 생성
-            String s3Key = user.getImage().getS3Key();
-            authorProfileImageUrl = "https://" + cloudfrontDomain + "/" + s3Key;
-        } else {
-            // 유저의 프로필 이미지가 없으면 -> 설정해둔 기본 이미지 URL 사용
-            authorProfileImageUrl = "https://" + cloudfrontDomain + "/" + defaultProfileImageKey;
-        }
-        return new UserInfoResponseDto(user.getNickname(), user.getEmail(),authorProfileImageUrl, user.getId());
+        return new UserInfoResponseDto(user.getNickname(), user.getEmail(), authorProfileImageUrl, user.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfilePageResponseDto getUserProfiles(int page) {
+        Pageable pageable = PageRequest.of(page, USER_PAGE_SIZE, Sort.by(Sort.Direction.ASC, "createdAt"));
+        Page<User> userPage = userRepository.findAllByOrderByCreatedAtDesc(pageable);
+
+        List<UserProfileDto> users = userPage.stream()
+                .map(this::toUserProfileDto)
+                .collect(Collectors.toList());
+
+        return new UserProfilePageResponseDto(users, userPage.hasNext());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileDto getUserProfileByNickname(String nickname) {
+        User user = userRepository.findByNickname(nickname)
+                .orElseThrow(() -> new BusinessException(MEMBER_NOT_FOUND));
+        return toUserProfileDto(user);
+    }
+
+    private UserProfileDto toUserProfileDto(User user) {
+        return new UserProfileDto(user.getId(), user.getNickname(), buildProfileImageUrl(user));
+    }
+
+    private String buildProfileImageUrl(User user) {
+        Image profileImage = user.getImage();
+        String imageKey = profileImage != null ? profileImage.getS3Key() : defaultProfileImageKey;
+        return "https://" + cloudfrontDomain + "/" + imageKey;
     }
 
     // 유저 삭제시 유저가 작성한 게시물도 레디스에서 제거
