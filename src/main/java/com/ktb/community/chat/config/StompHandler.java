@@ -16,6 +16,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
 import static com.ktb.community.exception.ErrorCode.ACCESS_DENIED;
+import static com.ktb.community.exception.ErrorCode.ROOM_NOT_FOUND;
 
 @Component
 public class StompHandler implements ChannelInterceptor {
@@ -48,8 +49,15 @@ public class StompHandler implements ChannelInterceptor {
             String accessToken = accessor.getFirstNativeHeader("access");
             Long userId = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
                     .getPayload().get("userId", Long.class);
-            String roomId = accessor.getDestination().split("/")[2];
-            if(!chatServiceImpl.isRoomParticipant(userId, Long.parseLong(roomId))){
+
+            String[] segments = accessor.getDestination().split("/");
+            if (segments.length < 4) {
+                throw new BusinessException(ROOM_NOT_FOUND);
+            }
+            Long roomId = Long.parseLong(segments[3]);
+
+
+            if(!chatServiceImpl.isRoomParticipant(userId, roomId)){
                 throw new BusinessException(ACCESS_DENIED);
             }
             System.out.println("----------------------------------------------");
