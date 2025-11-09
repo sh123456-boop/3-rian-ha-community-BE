@@ -98,7 +98,7 @@ public class SecurityConfig {
         // 경로별 인가 작업
         http
                 .authorizeHttpRequests((auth)-> auth
-                        .requestMatchers("/v1/auth/login", "/v1/auth/join", "/v1/auth/reissue", "/oauth2/**",
+                        .requestMatchers("/v1/auth/login", "/v1/auth/join", "/v1/auth/reissue", "/oauth2/**", "/v1/connect/**",
                                 "/swagger-ui/**", "/v3/api-docs/**", "/terms", "/privacy","/v1/users/me/nickname").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());

@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/chat")
-@Transactional
 public class ChatController {
     private final ChatServiceImpl chatService;
     private final UserServiceImpl userService;
@@ -24,7 +23,6 @@ public class ChatController {
         this.chatService = chatService;
         this.userService = userService;
     }
-
 
     //    그룹채팅방 개설
     @PostMapping("/room/group/create")

@@ -2,6 +2,7 @@ package com.ktb.community.chat.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ktb.community.chat.dto.ChatMessageDto;
+import com.ktb.community.chat.dto.ChatMessageReqDto;
 import com.ktb.community.chat.service.ChatServiceImpl;
 import com.ktb.community.chat.service.RedisPubSubService;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -25,7 +26,7 @@ public class StompController {
     }
 
     @MessageMapping("/{roomId}")
-    public void sendMessage(@DestinationVariable Long roomId, ChatMessageDto chatmessageDto) throws JsonProcessingException {
+    public void sendMessage(@DestinationVariable Long roomId, ChatMessageReqDto chatmessageDto) throws JsonProcessingException {
 //        /publish/roomId 형태로 오면 해당 room에 메세지 저장
         chatServiceImpl.saveMessage(roomId, chatmessageDto);
         chatmessageDto.setRoomId(roomId);

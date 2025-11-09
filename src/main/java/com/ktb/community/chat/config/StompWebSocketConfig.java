@@ -17,6 +17,9 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${spring.route.front}")
     String front;
 
+    @Value("${spring.route.front2}")
+    String front2;
+
     public StompWebSocketConfig(StompHandler stompHandler) {
         this.stompHandler = stompHandler;
     }
@@ -24,7 +27,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/v1/connect")
-                .setAllowedOrigins(front)
+                .setAllowedOrigins(front, front2,"http://localhost:8080", "http://127.0.0.1:8080")
 //                ws://가 아닌 http:// 엔드포인트를 사용할수 있게 해주는 sockJs라이브러리를 통한 요청을 허용하는 설정.
                 .withSockJS();
     }

@@ -26,7 +26,7 @@ public class OauthUser extends Timestamped {
     @Column(name = "provider_id", nullable = false)
     private String providerId;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 }

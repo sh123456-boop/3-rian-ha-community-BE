@@ -1,9 +1,6 @@
 package com.ktb.community.chat.service;
 
-import com.ktb.community.chat.dto.ChatMessageDto;
-import com.ktb.community.chat.dto.ChatRoomResDto;
-import com.ktb.community.chat.dto.ChatRoomPageResponseDto;
-import com.ktb.community.chat.dto.MyChatListResDto;
+import com.ktb.community.chat.dto.*;
 import com.ktb.community.chat.entity.ChatMessage;
 import com.ktb.community.chat.entity.ChatParticipant;
 import com.ktb.community.chat.entity.ChatRoom;
@@ -20,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +27,7 @@ import java.util.stream.Collectors;
 import static com.ktb.community.exception.ErrorCode.*;
 
 @Service
+@Transactional
 public class ChatServiceImpl implements ChatService {
 
     private static final int GROUP_CHAT_PAGE_SIZE = 5;
@@ -48,7 +47,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public void saveMessage(Long roomId, ChatMessageDto chatMessageReqDto) {
+    public void saveMessage(Long roomId, ChatMessageReqDto chatMessageReqDto) {
         // 채팅방 조회
         ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new BusinessException(ROOM_NOT_FOUND));
 

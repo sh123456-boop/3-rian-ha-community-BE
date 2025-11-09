@@ -39,6 +39,9 @@ public class StompHandler implements ChannelInterceptor {
             String accessToken = accessor.getFirstNativeHeader("access");
             Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(accessToken)
                     .getPayload().get("userId", Long.class);
+            System.out.println("----------------------------------------------");
+            System.out.println("StompCommand.CONNECT 성공");
+            System.out.println("----------------------------------------------");
         }
         // 특정 방 구독 시 접근 권한 확인
         if (StompCommand.SUBSCRIBE == accessor.getCommand()) {
@@ -49,6 +52,9 @@ public class StompHandler implements ChannelInterceptor {
             if(!chatServiceImpl.isRoomParticipant(userId, Long.parseLong(roomId))){
                 throw new BusinessException(ACCESS_DENIED);
             }
+            System.out.println("----------------------------------------------");
+            System.out.println("StompCommand.SUBSCRIBE 성공");
+            System.out.println("----------------------------------------------");
         }
         return message;
     }
