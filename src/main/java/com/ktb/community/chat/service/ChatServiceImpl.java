@@ -257,7 +257,7 @@ public class ChatServiceImpl implements ChatService {
         // 1:1 채팅방이 없을 경우 채팅방 개설
         ChatRoom newRoom = ChatRoom.builder()
                 .isGroupChat(false)
-                .name(otherMember.getNickname())
+                .name(user.getNickname() + "-" +otherMember.getNickname())
                 .build();
         chatRoomRepository.save(newRoom);
 
