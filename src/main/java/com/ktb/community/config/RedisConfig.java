@@ -1,9 +1,15 @@
 package com.ktb.community.config;
 
+import com.ktb.community.chat.service.RedisPubSubService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -29,5 +35,30 @@ public class RedisConfig {
 
         template.afterPropertiesSet(); // 설정 값 적용
         return template;
+    }
+
+    // chat publish 객체
+    @Bean
+    @Qualifier("chatPubSub")
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory){
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+
+    // subscribe 객체
+    @Bean
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+            RedisConnectionFactory redisConnectionFactory,
+            MessageListenerAdapter messageListenerAdapter
+    ) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(redisConnectionFactory);
+        container.addMessageListener(messageListenerAdapter, new PatternTopic("chat"));
+        return container;
+    }
+
+    // redis에서 수신된 메시지를 처리하는 객체 생성
+    @Bean
+    public MessageListenerAdapter messageListenerAdapter(RedisPubSubService redisPubSubService) {
+        return new MessageListenerAdapter(redisPubSubService, "onMessage");
     }
 }

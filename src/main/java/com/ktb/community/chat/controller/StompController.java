@@ -1,6 +1,7 @@
 package com.ktb.community.chat.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ktb.community.chat.dto.ChatMessageDto;
 import com.ktb.community.chat.dto.ChatMessageReqDto;
 import com.ktb.community.chat.mapper.DtoMapper;
@@ -34,7 +35,10 @@ public class StompController {
         chatServiceImpl.saveMessage(roomId, chatMessageReqDto);
         chatMessageReqDto.setRoomId(roomId);
         ChatMessageDto chatMessageDto = dtoMapper.toDto(chatMessageReqDto);
-        messageTemplate.convertAndSend("/v1/topic/"+roomId, chatMessageDto);
+//        messageTemplate.convertAndSend("/v1/topic/"+roomId, chatMessageDto);
 
+        ObjectMapper objectMapper = new ObjectMapper();
+        String message = objectMapper.writeValueAsString(chatMessageReqDto);
+        pubSubService.publish("chat", message);
     }
 }
