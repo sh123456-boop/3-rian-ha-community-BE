@@ -3,6 +3,7 @@ package com.ktb.community.chat.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ktb.community.chat.dto.ChatMessageDto;
+import com.ktb.community.chat.dto.ChatMessagePubSubDto;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -16,7 +17,8 @@ public class RedisPubSubService implements MessageListener {
     private final StringRedisTemplate stringRedisTemplate;
     private final SimpMessageSendingOperations messageTemplate;
 
-    public RedisPubSubService(@Qualifier("chatPubSub") StringRedisTemplate stringRedisTemplate, SimpMessageSendingOperations messageTemplate) {
+    public RedisPubSubService(@Qualifier("chatPubSub") StringRedisTemplate stringRedisTemplate,
+                              SimpMessageSendingOperations messageTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.messageTemplate = messageTemplate;
     }

@@ -1,6 +1,7 @@
 package com.ktb.community.chat.mapper;
 
 import com.ktb.community.chat.dto.ChatMessageDto;
+import com.ktb.community.chat.dto.ChatMessagePubSubDto;
 import com.ktb.community.chat.dto.ChatMessageReqDto;
 import com.ktb.community.chat.repository.ChatMessageRepository;
 import com.ktb.community.entity.User;
@@ -30,5 +31,19 @@ public class DtoMapper {
                 .nickName(user.getNickname())
                 .build();
         return chatMessageDto;
+    }
+
+    public ChatMessagePubSubDto toPubSubDto(ChatMessageReqDto chatMessageReqDto) {
+
+        User user = userRepository.findById(chatMessageReqDto.getSenderId()).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        ChatMessagePubSubDto chatMessagePubSubDto = ChatMessagePubSubDto.builder()
+                .message(chatMessageReqDto.getMessage())
+                .roomId(chatMessageReqDto.getRoomId())
+                .senderId(chatMessageReqDto.getSenderId())
+                .nickName(user.getNickname())
+                .build();
+        return chatMessagePubSubDto;
+
     }
 }

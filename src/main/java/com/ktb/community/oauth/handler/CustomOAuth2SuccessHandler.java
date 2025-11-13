@@ -27,8 +27,10 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
     private final JWTUtil jwtUtil;
     private final RefreshRepository refreshRepository;
 
-    @Value("${spring.route.aws}")
-    String aws;
+
+
+    @Value("${spring.route.front}")
+    String front;
 
     public CustomOAuth2SuccessHandler(JWTUtil jwtUtil, RefreshRepository refreshRepository) {
         this.jwtUtil = jwtUtil;
@@ -67,7 +69,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         response.addHeader("Set-Cookie", cookie.toString());
 
         String redirectUrl = UriComponentsBuilder
-                .fromUriString(aws +"/posts")
+                .fromUriString(front +"/posts")
                 .queryParam("access", URLEncoder.encode(access, StandardCharsets.UTF_8))
                 .build(true)      // 이미 인코딩돼 있다면 true 옵션으로 재인코딩 방지
                 .toUriString();
