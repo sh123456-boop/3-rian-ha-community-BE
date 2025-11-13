@@ -35,8 +35,10 @@ public class SecurityConfig {
     @Value("${spring.route.front}")
     String front;
 
-    @Value("${spring.route.front2}")
-    String front2;
+    @Value("${spring.route.aws}")
+    String aws;
+
+
 
 //    @Value("${spring.route.aws-front}")
 //    String aws_front;
@@ -64,7 +66,7 @@ public class SecurityConfig {
                     @Override
                     public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
                         CorsConfiguration configuration = new CorsConfiguration();
-                        configuration.setAllowedOrigins(Arrays.asList(front, front2,"http://localhost:8080", "http://127.0.0.1:8080" /*aws_front*/ ));
+                        configuration.setAllowedOrigins(Arrays.asList(front,"http://localhost:8080", "http://127.0.0.1:8080",aws));
                         configuration.setAllowedMethods(Collections.singletonList("*"));
                         configuration.setAllowCredentials(true);
                         configuration.setAllowedHeaders(Collections.singletonList("*"));
@@ -99,7 +101,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests((auth)-> auth
                         .requestMatchers("/v1/auth/login", "/v1/auth/join", "/v1/auth/reissue", "/oauth2/**", "/v1/connect/**",
-                                "/swagger-ui/**", "/v3/api-docs/**", "/v1/terms", "/v1/privacy","/v1/users/me/nickname").permitAll()
+                                "/swagger-ui/**", "/v3/api-docs/**", "/v1/terms", "/v1/privacy","/v1/users/me/nickname", "/v1/healthz").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());
 

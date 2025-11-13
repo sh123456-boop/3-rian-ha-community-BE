@@ -10,6 +10,7 @@ import com.ktb.community.oauth.dto.NaverResponse;
 import com.ktb.community.oauth.dto.OAuth2Response;
 import com.ktb.community.repository.OauthUserRepository;
 import com.ktb.community.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -23,6 +24,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final UserRepository userRepository;
     private final OauthUserRepository oauthUserRepository;
     private final PasswordEncoder passwordEncoder;
+
+
 
     public CustomOAuth2UserService(UserRepository userRepository, OauthUserRepository oauthUserRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;

@@ -22,7 +22,7 @@ spring:
             client-name: naver
             client-id: qiC2KMP792ei0J2lw6hI
             client-secret: jj5YUwEuWJ
-            redirect-uri: "http://localhost:8080/login/oauth2/code/naver"
+            redirect-uri: "http://ktb-rian.com:80/login/oauth2/code/naver"
             authorization-grant-type: authorization_code
             scope:
               - nickname
@@ -30,7 +30,7 @@ spring:
           kakao:
             client-name: kakao
             client-id: 9cd57fcf776cd967a72be5ee8f683fc0
-            redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"
+            redirect-uri: "http://ktb-rian.com:80/login/oauth2/code/kakao"
             authorization-grant-type: authorization_code
             scope:
               - profile_nickname
@@ -58,8 +58,7 @@ spring:
 
   route:
     front: http://localhost:3000
-    front2: http://127.0.0.1:3000
-#    aws-front: http://localhost:3000
+    aws: http://ktb-rian.com:80
 
 logging:
   level:

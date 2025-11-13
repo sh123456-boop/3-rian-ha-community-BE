@@ -7,6 +7,7 @@ import com.ktb.community.util.JWTUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
@@ -25,6 +26,9 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
 
     private final JWTUtil jwtUtil;
     private final RefreshRepository refreshRepository;
+
+    @Value("${spring.route.aws}")
+    String aws;
 
     public CustomOAuth2SuccessHandler(JWTUtil jwtUtil, RefreshRepository refreshRepository) {
         this.jwtUtil = jwtUtil;
@@ -63,7 +67,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         response.addHeader("Set-Cookie", cookie.toString());
 
         String redirectUrl = UriComponentsBuilder
-                .fromUriString("http://localhost:3000/")
+                .fromUriString(aws +"/posts")
                 .queryParam("access", URLEncoder.encode(access, StandardCharsets.UTF_8))
                 .build(true)      // 이미 인코딩돼 있다면 true 옵션으로 재인코딩 방지
                 .toUriString();
