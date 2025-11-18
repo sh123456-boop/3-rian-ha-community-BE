@@ -1,0 +1,28 @@
+  # build outputs
+  target
+  build
+  out
+  *.class
+
+  # Gradle/Maven wrappers & caches
+  .gradle
+  !gradle/wrapper/gradle-wrapper.jar
+  !gradle/wrapper/gradle-wrapper.properties
+  .mvn
+  !mvnw
+  !mvnw.cmd
+  !mvn/wrapper/maven-wrapper.jar
+  !mvn/wrapper/maven-wrapper.properties
+
+  # logs/temp/env
+  *.log
+  logs
+  tmp
+  .env
+  .env.*
+
+  # IDE/OS
+  .idea
+  *.iml
+  .DS_Store
+  *.swp
