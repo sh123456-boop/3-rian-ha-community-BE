@@ -61,6 +61,7 @@ jobs:
                       scope:
                         - nickname
                         - email
+                      provider: naver         
                     kakao:
                       client-name: kakao
                       client-id: 9cd57fcf776cd967a72be5ee8f683fc0
@@ -68,6 +69,7 @@ jobs:
                       authorization-grant-type: authorization_code
                       scope:
                         - profile_nickname
+                      provider: kakao
                 provider:
                   naver:
                     authorization-uri: "https://nid.naver.com/oauth2.0/authorize"
