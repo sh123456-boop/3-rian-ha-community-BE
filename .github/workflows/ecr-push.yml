@@ -41,7 +41,7 @@ jobs:
 
             data:
               redis:
-                host: clustercfg.redis.ss8ees.apn2.cache.amazonaws.com
+                host: clustercfg.redis1.ss8ees.apn2.cache.amazonaws.com
                 port: 6379
 
 
