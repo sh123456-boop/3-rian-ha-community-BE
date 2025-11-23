@@ -61,7 +61,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findSliceWithoutFetchJoinOrderByIdDesc(Pageable pageable);
 
     // 비관적 락을 사용하여 Post와 PostCount를 함께 조회
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    //@Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Post p JOIN FETCH p.postCount WHERE p.id = :postId")
     Optional<Post> findByIdWithPessimisticLock(@Param("postId") Long postId);
 
