@@ -41,12 +41,12 @@ jobs:
 
             data:
               redis:
-                host: clustercfg.redis1.ss8ees.apn2.cache.amazonaws.com
+                host: 172.31.39.166
                 port: 6379
 
 
             route:
-              front: https://ktb-rian.com
+              front: 172.31.32.103
 
             security:
               oauth2:
