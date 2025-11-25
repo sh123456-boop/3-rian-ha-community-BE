@@ -25,6 +25,8 @@ spring:
         show_sql: true # 실행되는 SQL을 콘솔에 출력
         format_sql: true # SQL을 보기 좋게 포맷팅
         # default_batch_fetch_size: 100 # IN 절 쿼리 최적화 (N+1 완화 옵션)
+  route:
+    front: http://localhost:3000
 
 # Hibernate가 실행하는 SQL 로그를 DEBUG 레벨로 자세히 보기
 logging:
@@ -36,3 +38,10 @@ aws:
   cloud_front:
     domain: test.cloudfront.net
     default-profile-image-key: default.png
+  region: ap-northeast-2
+  access_key: test-access-key
+  secret_key: test-secret-key
+  bucket: test-bucket
+
+jwt:
+  secret: test-jwt-secret-for-tests
