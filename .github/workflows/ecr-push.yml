@@ -45,6 +45,6 @@ jobs:
       - name: Start Instance Refresh for Spring ASG
         run: |
             aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name "spring-asg" \
-            --preferences '{"Strategy":"Rolling","MinHealthyPercentage":0}'
+              --auto-scaling-group-name "spring-asg" \
+              --preferences '{"MinHealthyPercentage":0,"SkipMatching":false}'
 
