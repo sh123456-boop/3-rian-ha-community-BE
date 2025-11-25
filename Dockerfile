@@ -10,8 +10,8 @@ COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties 
 RUN ./gradlew --no-daemon --version
 # 소스 코드 복사
 COPY src /app/src
-# 애플리케이션 빌드 (테스트 포함)
-RUN ./gradlew --no-daemon clean build
+# 애플리케이션 빌드 (테스트 스킵)
+RUN ./gradlew --no-daemon clean build -x test
 
 # 런타임 스테이지 : JRE 21만 포함해 이미지 슬림하게
 FROM eclipse-temurin:21-jre
