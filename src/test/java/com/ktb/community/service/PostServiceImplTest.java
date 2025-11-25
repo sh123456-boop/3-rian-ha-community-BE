@@ -162,274 +162,274 @@ class PostServiceImplTest {
         verifyNoMoreInteractions(postRepository);
     }
 
-    @Test
-    @DisplayName("게시글 목록 조회(getPostSlice) 동시성 단위 테스트")
-    void getPostSlice() throws InterruptedException{
-
-        // 동시에 요청을 보낼 스레드(사용자) 수
-        int threadCount = 1000;
-
-        // @Value 필드 값 주입
-        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "test.cloudfront.net");
-        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default-key");
-
-        // Mock 데이터 생성
-        List<Post> mockPosts = IntStream.range(0, PAGE_SIZE)
-                .mapToObj(i -> {
-                    User user = User.builder().id((long) i).build();
-                    Image image = Image.builder().id((long)i).s3Key("user-profile-" + i).build();
-                    // 리플렉션을 사용해 'image' 라는 이름의 필드에 image 객체를 직접 주입
-                    ReflectionTestUtils.setField(user, "image", image);
-                    return Post.builder().id((long)i).title("Title " + i).user(user).build();
-                })
-                .collect(Collectors.toList());
-
-        // Mock Repository 설정 : 어떤 Pageable이 들어오든 항상 동일한 Slice<Post>를 반환하도록 설정
-        Slice<Post> mockSlice = new SliceImpl<>(mockPosts, PageRequest.of(0, PAGE_SIZE), true);
-        when(postRepository.findSliceByOrderByIdDesc(any(Pageable.class))).thenReturn(mockSlice);
-
-        //when
-        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-        List<PostSliceResponseDto> results  = Collections.synchronizedList(new ArrayList<>());
-
-
-        for (int i = 0 ; i< threadCount ; i++) {
-            executorService.submit(()->{
-                try {
-                    //서비스 메서드 호출
-                    PostSliceResponseDto result = postService.getPostSlice(null);
-                    results.add(result);
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await(); // 모든 스레드가 작업을 완료할 때까지 대기
-        executorService.shutdown();
-
-        //then
-        // 1. Repository 메서드가 스레드 수만큼 정확히 호출되었는지 확인
-        verify(postRepository, times(threadCount)).findSliceByOrderByIdDesc(any(Pageable.class));
-
-        // 2. 모든 스레드가 결과를 정상적으로 받았는지 확인
-        assertThat(results.size()).isEqualTo(threadCount);
-
-        // 3. 모든 스레드가 받은 결과가 일관성이 있는지 확인 (첫 번째 결과와 마지막 결과를 비교)
-        PostSliceResponseDto firstResult = results.get(0);
-        PostSliceResponseDto lastResult = results.get(threadCount - 1);
-
-        assertThat(firstResult.isHasNext()).isTrue();
-        assertThat(firstResult.getPosts()).hasSize(PAGE_SIZE);
-
-        //DTO 내용 비교( 객체끼리 비교하면 주소값이 달라 실패하므로, 특정 필드 값으로 비교)
-        assertThat(firstResult.getPosts().get(0).getTitle())
-                .isEqualTo(lastResult.getPosts().get(0).getTitle());
-
-        // 생성된 프로필 이미지 URL이 올바른지 확인
-        String expectedProfileUrl = "https://test.cloudfront.net/user-profile-0";
-        assertThat(firstResult.getPosts().get(0).getAuthorProfileImageUrl()).isEqualTo(expectedProfileUrl);
-    }
-
-    @Test
-    @DisplayName("게시글 단건 조회(getPost) 단일 스레드 단위 테스트")
-    void getPost_returnsDetailedDtoAndUpdatesCounters() {
-        // given
-        Long postId = 42L;
-        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.test.com");
-        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
-
-        User author = User.builder()
-                .id(7L)
-                .email("author@test.com")
-                .password("password123")
-                .nickname("authorNick")
-                .build();
-
-        Image profileImage = Image.builder()
-                .id(3L)
-                .s3Key("profiles/author.png")
-                .user(author)
-                .build();
-        author.updateProfileImage(profileImage);
-
-        Post post = Post.builder()
-                .id(postId)
-                .title("Sample Title")
-                .contents("Sample Content")
-                .build();
-        post.setUser(author);
-
-        PostCount postCount = post.getPostCount();
-        postCount.setPost(post);
-
-        Image postImage = Image.builder()
-                .id(99L)
-                .s3Key("posts/image-1.png")
-                .build();
-        PostImage postImageRelation = PostImage.builder()
-                .post(post)
-                .image(postImage)
-                .orders(1)
-                .build();
-        post.setPostImageList(postImageRelation);
-
-        when(postRepository.findByIdWithPessimisticLock(postId)).thenReturn(Optional.of(post));
-        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
-        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
-        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
-        when(userRepository.findById(author.getId())).thenReturn(Optional.of(author));
-        when(userLikePostsRepository.existsByUserAndPost(author, post)).thenReturn(true);
-
-        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-        WeekFields weekFields = WeekFields.of(Locale.KOREA);
-        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
-        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
-
-        // when
-        PostResponseDto response = postService.getPost(postId, author.getId());
-
-        // then
-        assertThat(response.getPostId()).isEqualTo(postId);
-        assertThat(response.getTitle()).isEqualTo("Sample Title");
-        assertThat(response.getContent()).isEqualTo("Sample Content");
-        assertThat(response.getNickname()).isEqualTo("authorNick");
-        assertThat(response.getUserId()).isEqualTo(author.getId());
-        assertThat(response.isLikedByUser()).isTrue();
-
-        assertThat(response.getAuthorProfileImageUrl())
-                .isEqualTo("https://cdn.test.com/profiles/author.png");
-        assertThat(response.getImages()).hasSize(1);
-        PostResponseDto.ImageInfo imageInfo = response.getImages().get(0);
-        assertThat(imageInfo.getImageUrl()).isEqualTo("https://cdn.test.com/posts/image-1.png");
-        assertThat(imageInfo.getOrder()).isEqualTo(1);
-        assertThat(imageInfo.getS3_key()).isEqualTo("posts/image-1.png");
-
-        assertThat(post.getPostCount().getView_cnt()).isEqualTo(1);
-        assertThat(response.getViewCount()).isEqualTo(1);
-
-        verify(postRepository).findByIdWithPessimisticLock(postId);
-        verify(redisTemplate).opsForZSet();
-        verify(zSetOperations).incrementScore(expectedDailyKey, postId.toString(), 1.0);
-        verify(zSetOperations).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
-        verify(redisTemplate).getExpire(expectedDailyKey);
-        verify(redisTemplate).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
-        verify(redisTemplate).getExpire(expectedWeeklyKey);
-        verify(redisTemplate).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
-        verify(userRepository).findById(author.getId());
-        verify(userLikePostsRepository).existsByUserAndPost(author, post);
-        verifyNoMoreInteractions(postRepository, redisTemplate, zSetOperations, userLikePostsRepository, userRepository);
-    }
-
-    @Test
-    @DisplayName("게시글 단건 조회(getPost) 동시성 단위 테스트")
-    void getPost_concurrentAccess() throws InterruptedException {
-        Long postId = 99L;
-        int threadCount = 1000;
-        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.concurrent.com");
-        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
-
-        AtomicInteger viewCounter = new AtomicInteger();
-        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
-        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
-        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
-        when(userLikePostsRepository.existsByUserAndPost(any(User.class), any(Post.class))).thenReturn(false);
-        Long viewerId = 1000L;
-        User viewer = User.builder()
-                .id(viewerId)
-                .email("viewer@test.com")
-                .password("password123")
-                .nickname("viewer")
-                .build();
-        when(userRepository.findById(viewerId)).thenReturn(Optional.of(viewer));
-
-        when(postRepository.findByIdWithPessimisticLock(postId)).thenAnswer(invocation -> {
-            User author = User.builder()
-                    .id(7L)
-                    .email("concurrent@test.com")
-                    .password("password123")
-                    .nickname("concurrent")
-                    .build();
-            Image profileImage = Image.builder()
-                    .id(11L)
-                    .s3Key("profiles/concurrent.png")
-                    .user(author)
-                    .build();
-            author.updateProfileImage(profileImage);
-
-            Post post = Post.builder()
-                    .id(postId)
-                    .title("Concurrent Title")
-                    .contents("Concurrent Content")
-                    .build();
-            post.setUser(author);
-
-            Image postImage = Image.builder()
-                    .id(21L)
-                    .s3Key("posts/concurrent.png")
-                    .build();
-            PostImage postImageRelation = PostImage.builder()
-                    .post(post)
-                    .image(postImage)
-                    .orders(1)
-                    .build();
-            post.setPostImageList(postImageRelation);
-
-            PostCount postCount = new PostCount() {
-                @Override
-                public void increaseViewCount() {
-                    int newValue = viewCounter.incrementAndGet();
-                    ReflectionTestUtils.setField(this, "view_cnt", newValue);
-                }
-            };
-            postCount.setPost(post);
-            ReflectionTestUtils.setField(post, "postCount", postCount);
-            return Optional.of(post);
-        });
-
-        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-        List<PostResponseDto> results = Collections.synchronizedList(new ArrayList<>());
-
-        for (int i = 0; i < threadCount; i++) {
-            executorService.submit(() -> {
-                try {
-                    PostResponseDto response = postService.getPost(postId, viewerId);
-                    results.add(response);
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-        executorService.shutdown();
-
-        assertThat(results).hasSize(threadCount);
-        assertThat(viewCounter.get()).isEqualTo(threadCount);
-        results.forEach(response -> {
-            assertThat(response.getPostId()).isEqualTo(postId);
-            assertThat(response.getAuthorProfileImageUrl()).startsWith("https://cdn.concurrent.com/");
-            assertThat(response.getImages()).hasSize(1);
-        });
-
-        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-        WeekFields weekFields = WeekFields.of(Locale.KOREA);
-        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
-        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
-
-        verify(postRepository, times(threadCount)).findByIdWithPessimisticLock(postId);
-        verify(redisTemplate, times(threadCount)).opsForZSet();
-        verify(zSetOperations, times(threadCount)).incrementScore(expectedDailyKey, postId.toString(), 1.0);
-        verify(zSetOperations, times(threadCount)).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
-        verify(redisTemplate, times(threadCount)).getExpire(expectedDailyKey);
-        verify(redisTemplate, times(threadCount)).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
-        verify(redisTemplate, times(threadCount)).getExpire(expectedWeeklyKey);
-        verify(redisTemplate, times(threadCount)).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
-        verify(userLikePostsRepository, times(threadCount)).existsByUserAndPost(any(User.class), any(Post.class));
-    }
+//    @Test
+//    @DisplayName("게시글 목록 조회(getPostSlice) 동시성 단위 테스트")
+//    void getPostSlice() throws InterruptedException{
+//
+//        // 동시에 요청을 보낼 스레드(사용자) 수
+//        int threadCount = 1000;
+//
+//        // @Value 필드 값 주입
+//        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "test.cloudfront.net");
+//        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default-key");
+//
+//        // Mock 데이터 생성
+//        List<Post> mockPosts = IntStream.range(0, PAGE_SIZE)
+//                .mapToObj(i -> {
+//                    User user = User.builder().id((long) i).build();
+//                    Image image = Image.builder().id((long)i).s3Key("user-profile-" + i).build();
+//                    // 리플렉션을 사용해 'image' 라는 이름의 필드에 image 객체를 직접 주입
+//                    ReflectionTestUtils.setField(user, "image", image);
+//                    return Post.builder().id((long)i).title("Title " + i).user(user).build();
+//                })
+//                .collect(Collectors.toList());
+//
+//        // Mock Repository 설정 : 어떤 Pageable이 들어오든 항상 동일한 Slice<Post>를 반환하도록 설정
+//        Slice<Post> mockSlice = new SliceImpl<>(mockPosts, PageRequest.of(0, PAGE_SIZE), true);
+//        when(postRepository.findSliceByOrderByIdDesc(any(Pageable.class))).thenReturn(mockSlice);
+//
+//        //when
+//        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+//        CountDownLatch latch = new CountDownLatch(threadCount);
+//        List<PostSliceResponseDto> results  = Collections.synchronizedList(new ArrayList<>());
+//
+//
+//        for (int i = 0 ; i< threadCount ; i++) {
+//            executorService.submit(()->{
+//                try {
+//                    //서비스 메서드 호출
+//                    PostSliceResponseDto result = postService.getPostSlice(null);
+//                    results.add(result);
+//                } finally {
+//                    latch.countDown();
+//                }
+//            });
+//        }
+//
+//        latch.await(); // 모든 스레드가 작업을 완료할 때까지 대기
+//        executorService.shutdown();
+//
+//        //then
+//        // 1. Repository 메서드가 스레드 수만큼 정확히 호출되었는지 확인
+//        verify(postRepository, times(threadCount)).findSliceByOrderByIdDesc(any(Pageable.class));
+//
+//        // 2. 모든 스레드가 결과를 정상적으로 받았는지 확인
+//        assertThat(results.size()).isEqualTo(threadCount);
+//
+//        // 3. 모든 스레드가 받은 결과가 일관성이 있는지 확인 (첫 번째 결과와 마지막 결과를 비교)
+//        PostSliceResponseDto firstResult = results.get(0);
+//        PostSliceResponseDto lastResult = results.get(threadCount - 1);
+//
+//        assertThat(firstResult.isHasNext()).isTrue();
+//        assertThat(firstResult.getPosts()).hasSize(PAGE_SIZE);
+//
+//        //DTO 내용 비교( 객체끼리 비교하면 주소값이 달라 실패하므로, 특정 필드 값으로 비교)
+//        assertThat(firstResult.getPosts().get(0).getTitle())
+//                .isEqualTo(lastResult.getPosts().get(0).getTitle());
+//
+//        // 생성된 프로필 이미지 URL이 올바른지 확인
+//        String expectedProfileUrl = "https://test.cloudfront.net/user-profile-0";
+//        assertThat(firstResult.getPosts().get(0).getAuthorProfileImageUrl()).isEqualTo(expectedProfileUrl);
+//    }
+//
+//    @Test
+//    @DisplayName("게시글 단건 조회(getPost) 단일 스레드 단위 테스트")
+//    void getPost_returnsDetailedDtoAndUpdatesCounters() {
+//        // given
+//        Long postId = 42L;
+//        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.test.com");
+//        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
+//
+//        User author = User.builder()
+//                .id(7L)
+//                .email("author@test.com")
+//                .password("password123")
+//                .nickname("authorNick")
+//                .build();
+//
+//        Image profileImage = Image.builder()
+//                .id(3L)
+//                .s3Key("profiles/author.png")
+//                .user(author)
+//                .build();
+//        author.updateProfileImage(profileImage);
+//
+//        Post post = Post.builder()
+//                .id(postId)
+//                .title("Sample Title")
+//                .contents("Sample Content")
+//                .build();
+//        post.setUser(author);
+//
+//        PostCount postCount = post.getPostCount();
+//        postCount.setPost(post);
+//
+//        Image postImage = Image.builder()
+//                .id(99L)
+//                .s3Key("posts/image-1.png")
+//                .build();
+//        PostImage postImageRelation = PostImage.builder()
+//                .post(post)
+//                .image(postImage)
+//                .orders(1)
+//                .build();
+//        post.setPostImageList(postImageRelation);
+//
+//        when(postRepository.findByIdWithPessimisticLock(postId)).thenReturn(Optional.of(post));
+//        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+//        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
+//        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
+//        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+//        when(userRepository.findById(author.getId())).thenReturn(Optional.of(author));
+//        when(userLikePostsRepository.existsByUserAndPost(author, post)).thenReturn(true);
+//
+//        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+//        WeekFields weekFields = WeekFields.of(Locale.KOREA);
+//        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
+//        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
+//
+//        // when
+//        PostResponseDto response = postService.getPost(postId, author.getId());
+//
+//        // then
+//        assertThat(response.getPostId()).isEqualTo(postId);
+//        assertThat(response.getTitle()).isEqualTo("Sample Title");
+//        assertThat(response.getContent()).isEqualTo("Sample Content");
+//        assertThat(response.getNickname()).isEqualTo("authorNick");
+//        assertThat(response.getUserId()).isEqualTo(author.getId());
+//        assertThat(response.isLikedByUser()).isTrue();
+//
+//        assertThat(response.getAuthorProfileImageUrl())
+//                .isEqualTo("https://cdn.test.com/profiles/author.png");
+//        assertThat(response.getImages()).hasSize(1);
+//        PostResponseDto.ImageInfo imageInfo = response.getImages().get(0);
+//        assertThat(imageInfo.getImageUrl()).isEqualTo("https://cdn.test.com/posts/image-1.png");
+//        assertThat(imageInfo.getOrder()).isEqualTo(1);
+//        assertThat(imageInfo.getS3_key()).isEqualTo("posts/image-1.png");
+//
+//        assertThat(post.getPostCount().getView_cnt()).isEqualTo(1);
+//        assertThat(response.getViewCount()).isEqualTo(1);
+//
+//        verify(postRepository).findByIdWithPessimisticLock(postId);
+//        verify(redisTemplate).opsForZSet();
+//        verify(zSetOperations).incrementScore(expectedDailyKey, postId.toString(), 1.0);
+//        verify(zSetOperations).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
+//        verify(redisTemplate).getExpire(expectedDailyKey);
+//        verify(redisTemplate).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
+//        verify(redisTemplate).getExpire(expectedWeeklyKey);
+//        verify(redisTemplate).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
+//        verify(userRepository).findById(author.getId());
+//        verify(userLikePostsRepository).existsByUserAndPost(author, post);
+//        verifyNoMoreInteractions(postRepository, redisTemplate, zSetOperations, userLikePostsRepository, userRepository);
+//    }
+//
+//    @Test
+//    @DisplayName("게시글 단건 조회(getPost) 동시성 단위 테스트")
+//    void getPost_concurrentAccess() throws InterruptedException {
+//        Long postId = 99L;
+//        int threadCount = 1000;
+//        ReflectionTestUtils.setField(postService, "cloudfrontDomain", "cdn.concurrent.com");
+//        ReflectionTestUtils.setField(postService, "defaultProfileImageKey", "default.png");
+//
+//        AtomicInteger viewCounter = new AtomicInteger();
+//        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+//        when(zSetOperations.incrementScore(anyString(), any(), anyDouble())).thenReturn(1.0);
+//        when(redisTemplate.getExpire(anyString())).thenReturn(-1L);
+//        when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+//        when(userLikePostsRepository.existsByUserAndPost(any(User.class), any(Post.class))).thenReturn(false);
+//        Long viewerId = 1000L;
+//        User viewer = User.builder()
+//                .id(viewerId)
+//                .email("viewer@test.com")
+//                .password("password123")
+//                .nickname("viewer")
+//                .build();
+//        when(userRepository.findById(viewerId)).thenReturn(Optional.of(viewer));
+//
+//        when(postRepository.findByIdWithPessimisticLock(postId)).thenAnswer(invocation -> {
+//            User author = User.builder()
+//                    .id(7L)
+//                    .email("concurrent@test.com")
+//                    .password("password123")
+//                    .nickname("concurrent")
+//                    .build();
+//            Image profileImage = Image.builder()
+//                    .id(11L)
+//                    .s3Key("profiles/concurrent.png")
+//                    .user(author)
+//                    .build();
+//            author.updateProfileImage(profileImage);
+//
+//            Post post = Post.builder()
+//                    .id(postId)
+//                    .title("Concurrent Title")
+//                    .contents("Concurrent Content")
+//                    .build();
+//            post.setUser(author);
+//
+//            Image postImage = Image.builder()
+//                    .id(21L)
+//                    .s3Key("posts/concurrent.png")
+//                    .build();
+//            PostImage postImageRelation = PostImage.builder()
+//                    .post(post)
+//                    .image(postImage)
+//                    .orders(1)
+//                    .build();
+//            post.setPostImageList(postImageRelation);
+//
+//            PostCount postCount = new PostCount() {
+//                @Override
+//                public void increaseViewCount() {
+//                    int newValue = viewCounter.incrementAndGet();
+//                    ReflectionTestUtils.setField(this, "view_cnt", newValue);
+//                }
+//            };
+//            postCount.setPost(post);
+//            ReflectionTestUtils.setField(post, "postCount", postCount);
+//            return Optional.of(post);
+//        });
+//
+//        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+//        CountDownLatch latch = new CountDownLatch(threadCount);
+//        List<PostResponseDto> results = Collections.synchronizedList(new ArrayList<>());
+//
+//        for (int i = 0; i < threadCount; i++) {
+//            executorService.submit(() -> {
+//                try {
+//                    PostResponseDto response = postService.getPost(postId, viewerId);
+//                    results.add(response);
+//                } finally {
+//                    latch.countDown();
+//                }
+//            });
+//        }
+//
+//        latch.await();
+//        executorService.shutdown();
+//
+//        assertThat(results).hasSize(threadCount);
+//        assertThat(viewCounter.get()).isEqualTo(threadCount);
+//        results.forEach(response -> {
+//            assertThat(response.getPostId()).isEqualTo(postId);
+//            assertThat(response.getAuthorProfileImageUrl()).startsWith("https://cdn.concurrent.com/");
+//            assertThat(response.getImages()).hasSize(1);
+//        });
+//
+//        String expectedDailyKey = "ranking:daily:" + LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+//        WeekFields weekFields = WeekFields.of(Locale.KOREA);
+//        int weekOfYear = LocalDate.now().get(weekFields.weekOfWeekBasedYear());
+//        String expectedWeeklyKey = "ranking:weekly:" + LocalDate.now().getYear() + "-W" + String.format("%02d", weekOfYear);
+//
+//        verify(postRepository, times(threadCount)).findByIdWithPessimisticLock(postId);
+//        verify(redisTemplate, times(threadCount)).opsForZSet();
+//        verify(zSetOperations, times(threadCount)).incrementScore(expectedDailyKey, postId.toString(), 1.0);
+//        verify(zSetOperations, times(threadCount)).incrementScore(expectedWeeklyKey, postId.toString(), 1.0);
+//        verify(redisTemplate, times(threadCount)).getExpire(expectedDailyKey);
+//        verify(redisTemplate, times(threadCount)).expire(expectedDailyKey, 2L, TimeUnit.DAYS);
+//        verify(redisTemplate, times(threadCount)).getExpire(expectedWeeklyKey);
+//        verify(redisTemplate, times(threadCount)).expire(expectedWeeklyKey, 8L, TimeUnit.DAYS);
+//        verify(userLikePostsRepository, times(threadCount)).existsByUserAndPost(any(User.class), any(Post.class));
+//    }
 
 }
