@@ -20,7 +20,6 @@ COPY src /app/src
 RUN ./gradlew --no-daemon clean build -x test
 
 
-
 # 런타임 스테이지 : JRE 21만 포함해 이미지 슬림하게
 FROM eclipse-temurin:21-jre
 
