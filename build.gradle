@@ -30,6 +30,7 @@ dependencies {
 
     // 테스트 코드 관련 h2 db
     testImplementation 'com.h2database:h2'
+
     // 타임리프
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     // aws 관련
