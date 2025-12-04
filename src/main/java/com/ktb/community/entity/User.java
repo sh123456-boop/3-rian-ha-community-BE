@@ -37,7 +37,7 @@ public class User extends Timestamped{
 
     @NotBlank
     @Setter
-    @Size(min = 2, max = 10)
+    @Size(min = 2, max = 20)
     @Column(nullable = false, unique = true)
     private String nickname;
 
