@@ -19,4 +19,4 @@ logging:
     org.hibernate.SQL: debug
     org.springframework.security: TRACE
 
-spring.profiles.default: dev
+spring.profiles.default: secret
