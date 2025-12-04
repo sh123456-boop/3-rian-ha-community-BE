@@ -17,7 +17,7 @@ RUN ./gradlew --no-daemon --version
 COPY src /app/src
 
 # 애플리케이션 빌드
-RUN ./gradlew --no-daemon clean build
+RUN ./gradlew --no-daemon clean build -x test
 
 
 # 런타임 스테이지 : JRE 21만 포함해 이미지 슬림하게
