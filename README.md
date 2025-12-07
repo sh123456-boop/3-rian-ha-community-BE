@@ -65,6 +65,7 @@
 - Docker / Docker Compose
 - Git, GitHub
 - GitHub Actions(CI/CD)
+<img width="708" height="872" alt="최종 아키텍처" src="https://github.com/user-attachments/assets/ebcc818a-6b03-4f6c-b324-c750673ee7e8" />
 
 ---
 
