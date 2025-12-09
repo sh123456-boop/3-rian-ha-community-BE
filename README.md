@@ -35,7 +35,7 @@
 ## 📚 Technical Docs
 
 - 📏 [DB 테이블 크기 계산](docs/capacity/db-table-size-estimation.md)
-- 🛢 [RDB / MySQL](docs/RDB/MySQL.md)
+- 🛢 [RDS vs EC2(Docker) 기반 MySQL 비교 및 선택 근거](docs/RDB/MySQL.md)
 - 🕒 [가용성에 따른 장애시간 & 비용 손실](docs/reliability/availability-downtime-cost.md)
 - 💸 [S3 & CloudFront 비용 계산](docs/cost/s3-cloudfront-cost.md)
 - 🚀 [K6 부하 테스트로 인스턴스 스펙 결정](docs/performance/k6-instance-spec-decision.md)
