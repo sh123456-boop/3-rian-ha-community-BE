@@ -30,11 +30,15 @@
     - 채팅방 입장/퇴장, 메시지 송수신
     - 특정 채팅방(topic)으로 메시지 브로드캐스팅
 
-- **기술적 특징**
-  - Entity / DTO 분리 및 Bean Validation을 통한 요청 데이터 검증
-  - Global Exception Handler로 일관된 에러 응답 형식 제공
-  - 서비스/도메인 단위로 비즈니스 로직 분리
-  - Redis 등을 활용한 세션/채팅 메시지 관리
+---
+
+## 📚 Technical Docs
+
+- 📏 [DB 테이블 크기 계산](docs/capacity/db-table-size-estimation.md)
+- 🛢 [RDB / MySQL](docs/RDB/MySQL.md)
+- 🕒 [가용성에 따른 장애시간 & 비용 손실](docs/reliability/availability-downtime-cost.md)
+- 💸 [S3 & CloudFront 비용 계산](docs/cost/s3-cloudfront-cost.md)
+- 🚀 [K6 부하 테스트로 인스턴스 스펙 결정](docs/performance/k6-instance-spec-decision.md)
 
 ---
 
