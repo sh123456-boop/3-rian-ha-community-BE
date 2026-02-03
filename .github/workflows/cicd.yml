@@ -43,6 +43,16 @@ jobs:
           
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAGS
 
+      - name: Restart Tomcat on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            sudo systemctl restart tomcat
+
 #      - name: Start Instance Refresh for Spring ASG
 #        run: |
 #            aws autoscaling start-instance-refresh \
