@@ -1,7 +1,5 @@
 package com.ktb.community.config;
 
-import com.ktb.community.oauth.handler.CustomOAuth2SuccessHandler;
-import com.ktb.community.oauth.service.CustomOAuth2UserService;
 import com.ktb.community.repository.RefreshRepository;
 import com.ktb.community.util.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,9 +47,7 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
-                                          CustomOAuth2UserService customOAuth2UserService,
-                                          CustomOAuth2SuccessHandler customOAuth2SuccessHandler) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         // CORS 설정 추가
         http
@@ -82,13 +78,6 @@ public class SecurityConfig {
         // http basic 인증 방식 disable
         http
                 .httpBasic((auth)-> auth.disable());
-
-        // oauth 로그인
-        http
-                .oauth2Login((oauth2) -> oauth2
-                        .userInfoEndpoint((userInfoEndpointConfig) -> userInfoEndpointConfig
-                                .userService(customOAuth2UserService))
-                        .successHandler(customOAuth2SuccessHandler));
 
         // 경로별 인가 작업
         http

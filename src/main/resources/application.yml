@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: dev
   jpa:
     hibernate:
       ddl-auto: validate   # 개발 중에는 create / create-drop / update 중 선택
@@ -18,5 +20,3 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.springframework.security: TRACE
-
-spring.profiles.default: secret
